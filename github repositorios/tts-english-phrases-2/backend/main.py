@@ -66,6 +66,7 @@ async def serve_frontend():
 class InterpretTopicRequest(BaseModel):
     language: str
     topic: str
+    refinement: str | None = None
 
 
 class GenerateSessionRequest(BaseModel):
@@ -164,7 +165,7 @@ async def run_session_generation(
 @app.post("/interpret-topic")
 async def interpret_topic_route(req: InterpretTopicRequest):
     try:
-        interpretation = await interpret_topic(req.topic, req.language)
+        interpretation = await interpret_topic(req.topic, req.language, req.refinement)
         return {"interpretation": interpretation}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

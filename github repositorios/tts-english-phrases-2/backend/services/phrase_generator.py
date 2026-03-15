@@ -55,7 +55,14 @@ async def generate_phrases(language: str, topic: str, num_phrases: int) -> list[
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-async def interpret_topic(topic: str, language: str) -> str:
+async def interpret_topic(topic: str, language: str, refinement: str | None = None) -> str:
+    user_content = (
+        f"I'm learning {language} and I want to practice: '{topic}'. "
+        f"What kind of phrases would you generate for me?"
+    )
+    if refinement:
+        user_content += f" Additional focus: {refinement}"
+
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -69,10 +76,7 @@ async def interpret_topic(topic: str, language: str) -> str:
             },
             {
                 "role": "user",
-                "content": (
-                    f"I'm learning {language} and I want to practice: '{topic}'. "
-                    f"What kind of phrases would you generate for me?"
-                ),
+                "content": user_content,
             },
         ],
         temperature=0.7,

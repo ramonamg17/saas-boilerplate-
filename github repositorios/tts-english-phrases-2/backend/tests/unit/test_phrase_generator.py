@@ -122,3 +122,30 @@ async def test_interpret_topic_uses_gpt4o_mini():
 
     call_kwargs = mock_client.chat.completions.create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4o-mini"
+
+
+async def test_interpret_topic_with_refinement():
+    mock_resp = make_chat_response("Focused business phrases.")
+
+    with patch("services.phrase_generator.client") as mock_client:
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_resp)
+        result = await interpret_topic("phrasal verbs", "English", refinement="business context")
+
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+    call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+    user_msg = call_kwargs["messages"][-1]["content"]
+    assert "business context" in user_msg
+
+
+async def test_interpret_topic_without_refinement_excludes_additional_focus():
+    mock_resp = make_chat_response("General phrases.")
+
+    with patch("services.phrase_generator.client") as mock_client:
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_resp)
+        await interpret_topic("travel", "French")
+
+    call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+    user_msg = call_kwargs["messages"][-1]["content"]
+    assert "Additional focus" not in user_msg

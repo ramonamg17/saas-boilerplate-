@@ -180,6 +180,47 @@
       margin-bottom: 8px;
     }
 
+    /* ── Refine row ── */
+    .refine-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .refine-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: var(--font);
+    }
+
+    .refine-row input:focus { border-color: var(--accent); }
+
+    .refine-row input::placeholder { color: var(--text-muted); }
+
+    .btn-refine {
+      padding: 10px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      font-family: var(--font);
+    }
+
+    .btn-refine:hover { border-color: var(--accent); color: var(--text); }
+    .btn-refine:disabled { opacity: 0.5; cursor: not-allowed; }
+
     /* ── Loading ── */
     .progress-wrap {
       background: var(--surface2);
@@ -395,6 +436,15 @@
       <div class="label">What you'll practice</div>
       <div id="interpretation-text">Loading…</div>
     </div>
+    <div class="refine-row">
+      <input
+        type="text"
+        id="refine-input"
+        placeholder="Refine (e.g. focus on business context)"
+        maxlength="200"
+      />
+      <button class="btn-refine" id="btn-refine">Update</button>
+    </div>
     <div class="session-meta" id="confirm-meta"></div>
     <button class="btn" id="btn-confirm">Confirm &amp; Generate</button>
     <button class="btn btn-secondary" id="btn-back">Go Back</button>
@@ -517,6 +567,49 @@
 
     document.getElementById('btn-back').addEventListener('click', () => {
       showView('view-form');
+    });
+
+    // ─── Refine topic ─────────────────────────────────────────────────────────
+    async function submitRefinement() {
+      const refinement = document.getElementById('refine-input').value.trim();
+      if (!refinement) return;
+
+      const btn = document.getElementById('btn-refine');
+      btn.disabled = true;
+      btn.textContent = '…';
+
+      try {
+        const res = await fetch(`${API_URL}/interpret-topic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: formData.language,
+            topic: formData.topic,
+            refinement,
+          }),
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('interpretation-text').textContent = data.interpretation;
+
+        formData.topic = `${formData.topic} — ${refinement}`;
+        document.getElementById('confirm-meta').textContent =
+          `${formData.language} · "${formData.topic}" · ~${formData.duration_minutes} min`;
+
+        document.getElementById('refine-input').value = '';
+      } catch (err) {
+        alert(`Refinement failed: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Update';
+      }
+    }
+
+    document.getElementById('btn-refine').addEventListener('click', submitRefinement);
+
+    document.getElementById('refine-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitRefinement();
     });
 
     // ─── Confirm → Loading ────────────────────────────────────────────────────
