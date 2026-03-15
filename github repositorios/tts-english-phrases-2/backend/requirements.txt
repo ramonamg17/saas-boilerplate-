@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+openai
+httpx
+pydub
+ffmpeg-python
+supabase
+tenacity
+apscheduler
+python-dotenv
+python-multipart

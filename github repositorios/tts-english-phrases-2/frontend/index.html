@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinguaFlow – Comprehensible Input Audio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --border: #2e2e40;
+      --accent: #6c63ff;
+      --accent-hover: #7d75ff;
+      --accent-dim: rgba(108, 99, 255, 0.15);
+      --text: #e8e8f0;
+      --text-muted: #8888a8;
+      --success: #4caf88;
+      --error: #ef5350;
+      --radius: 12px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 6px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 20px; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+      font-family: var(--font);
+    }
+
+    select:focus, input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888a8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    .duration-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .duration-btn {
+      flex: 1;
+      min-width: 60px;
+      padding: 10px 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+      font-family: var(--font);
+    }
+
+    .duration-btn:hover { border-color: var(--accent); color: var(--text); }
+    .duration-btn.selected {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: var(--font);
+      min-height: 48px;
+    }
+
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); background: transparent; }
+
+    /* ── Confirm ── */
+    .interpretation-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .interpretation-box .label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    /* ── Loading ── */
+    .progress-wrap {
+      background: var(--surface2);
+      border-radius: 999px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .step-label {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+
+    /* ── Player ── */
+    .player-wrap {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .play-btn {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .play-btn:hover { background: var(--accent-hover); }
+
+    .play-btn svg { width: 18px; height: 18px; fill: #fff; }
+
+    .time-display {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .seek-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: none;
+    }
+
+    .btn-download {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .btn-download svg { width: 18px; height: 18px; fill: #fff; }
+
+    .error-msg {
+      background: rgba(239, 83, 80, 0.1);
+      border: 1px solid var(--error);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.875rem;
+      color: var(--error);
+      margin-bottom: 16px;
+    }
+
+    .session-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* Hidden audio element */
+    audio { display: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>LinguaFlow</h1>
+    <p>Comprehensible input audio sessions for language learners</p>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       View 1 – Form
+  ════════════════════════════════════════════════ -->
+  <div class="card view active" id="view-form">
+    <div class="field">
+      <label for="language-select">Target Language</label>
+      <select id="language-select">
+        <option value="English" selected>English</option>
+        <option value="Spanish">Spanish</option>
+        <option value="Portuguese (Brazil)">Portuguese (Brazil)</option>
+        <option value="French">French</option>
+        <option value="German">German</option>
+        <option value="Italian">Italian</option>
+        <option value="Japanese">Japanese</option>
+        <option value="Russian">Russian</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="topic-input">Topic</label>
+      <input
+        type="text"
+        id="topic-input"
+        placeholder="e.g. ordering food, daily routines, travel"
+        maxlength="200"
+      />
+    </div>
+
+    <div class="field">
+      <label>Session Duration</label>
+      <div class="duration-group" id="duration-group">
+        <button class="duration-btn" data-min="5">~5 min</button>
+        <button class="duration-btn selected" data-min="10">~10 min</button>
+        <button class="duration-btn" data-min="15">~15 min</button>
+        <button class="duration-btn" data-min="20">~20 min</button>
+        <button class="duration-btn" data-min="30">~30 min</button>
+      </div>
+    </div>
+
+    <button class="btn" id="btn-generate">Generate Session</button>
+
+    <p id="form-error" style="color:var(--error);font-size:0.8rem;margin-top:10px;display:none;"></p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       View 2 – Confirm
+  ════════════════════════════════════════════════ -->
+  <div class="card view" id="view-confirm">
+    <div class="interpretation-box">
+      <div class="label">What you'll practice</div>
+      <div id="interpretation-text">Loading…</div>
+    </div>
+    <div class="session-meta" id="confirm-meta"></div>
+    <button class="btn" id="btn-confirm">Confirm &amp; Generate</button>
+    <button class="btn btn-secondary" id="btn-back">Go Back</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       View 3 – Loading
+  ════════════════════════════════════════════════ -->
+  <div class="card view" id="view-loading">
+    <div class="spinner"></div>
+    <div class="step-label" id="step-label">Starting…</div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="progress-info">
+      <span id="progress-pct">0%</span>
+      <span id="progress-eta">Generating your session…</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       View 4 – Player
+  ════════════════════════════════════════════════ -->
+  <div class="card view" id="view-player">
+    <audio id="audio-el" preload="auto"></audio>
+
+    <div class="player-wrap">
+      <div class="player-controls">
+        <button class="play-btn" id="play-btn" aria-label="Play/Pause">
+          <svg id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="icon-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+        </button>
+        <div class="seek-wrap">
+          <input type="range" id="seek-bar" min="0" max="100" value="0" step="0.1" />
+        </div>
+        <div class="time-display" id="time-display">0:00 / 0:00</div>
+      </div>
+    </div>
+
+    <a class="btn btn-download" id="download-link" href="#" download>
+      <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-7 9l-7-7h4V3h6v8h4l-7 7zm-9 4h16v-2H3v2z"/></svg>
+      Download MP3
+    </a>
+
+    <div class="divider"></div>
+
+    <button class="btn btn-secondary" id="btn-new-session">Generate New Session</button>
+  </div>
+
+  <script>
+    // ─── Config ───────────────────────────────────────────────────────────────
+    // Change this to your Railway backend URL before deploying.
+    // For local dev: http://localhost:8000
+    const API_URL = 'http://localhost:8000';
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let selectedDuration = 10;
+    let currentSessionId = null;
+    let pollInterval = null;
+    let currentAudioUrl = null;
+    let formData = {};
+
+    // ─── View helpers ─────────────────────────────────────────────────────────
+    function showView(id) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ─── Duration buttons ─────────────────────────────────────────────────────
+    document.getElementById('duration-group').addEventListener('click', e => {
+      const btn = e.target.closest('.duration-btn');
+      if (!btn) return;
+      document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedDuration = parseInt(btn.dataset.min, 10);
+    });
+
+    // ─── Form → Confirm ───────────────────────────────────────────────────────
+    document.getElementById('btn-generate').addEventListener('click', async () => {
+      const language = document.getElementById('language-select').value;
+      const topic = document.getElementById('topic-input').value.trim();
+      const errEl = document.getElementById('form-error');
+
+      if (!topic) {
+        errEl.textContent = 'Please enter a topic.';
+        errEl.style.display = 'block';
+        return;
+      }
+      errEl.style.display = 'none';
+
+      formData = { language, topic, duration_minutes: selectedDuration };
+
+      const btn = document.getElementById('btn-generate');
+      btn.disabled = true;
+      btn.textContent = 'Thinking…';
+
+      try {
+        const res = await fetch(`${API_URL}/interpret-topic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language, topic }),
+        });
+
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('interpretation-text').textContent = data.interpretation;
+        document.getElementById('confirm-meta').textContent =
+          `${language} · "${topic}" · ~${selectedDuration} min`;
+
+        showView('view-confirm');
+      } catch (err) {
+        errEl.textContent = `Error: ${err.message}`;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Session';
+      }
+    });
+
+    document.getElementById('btn-back').addEventListener('click', () => {
+      showView('view-form');
+    });
+
+    // ─── Confirm → Loading ────────────────────────────────────────────────────
+    document.getElementById('btn-confirm').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-confirm');
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
+
+      try {
+        const res = await fetch(`${API_URL}/generate-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        currentSessionId = data.session_id;
+
+        showView('view-loading');
+        startPolling(currentSessionId);
+      } catch (err) {
+        alert(`Failed to start session: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm & Generate';
+      }
+    });
+
+    // ─── Status polling ───────────────────────────────────────────────────────
+    const STEP_LABELS = {
+      queued: 'Queued…',
+      generating_phrases: 'Generating phrases…',
+      moderating: 'Moderating content…',
+      generating_audio: 'Generating audio…',
+      assembling: 'Assembling audio…',
+      uploading: 'Uploading…',
+      done: 'Done!',
+      error: 'Error',
+    };
+
+    function startPolling(sessionId) {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(() => pollStatus(sessionId), 2000);
+      pollStatus(sessionId);
+    }
+
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+
+    async function pollStatus(sessionId) {
+      try {
+        const res = await fetch(`${API_URL}/session/${sessionId}/status`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const bar = document.getElementById('progress-bar');
+        const pct = document.getElementById('progress-pct');
+        const label = document.getElementById('step-label');
+
+        bar.style.width = `${data.progress}%`;
+        pct.textContent = `${data.progress}%`;
+        label.textContent = STEP_LABELS[data.status] || data.status;
+
+        if (data.status === 'done' && data.audio_url) {
+          stopPolling();
+          currentAudioUrl = data.audio_url;
+          initPlayer(data.audio_url, sessionId);
+          showView('view-player');
+        } else if (data.status === 'error') {
+          stopPolling();
+          showView('view-form');
+          const errEl = document.getElementById('form-error');
+          errEl.textContent = `Generation failed: ${data.error || 'Unknown error'}`;
+          errEl.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }
+
+    // ─── Audio player ─────────────────────────────────────────────────────────
+    function initPlayer(url, sessionId) {
+      const audio = document.getElementById('audio-el');
+      audio.src = url;
+
+      const downloadLink = document.getElementById('download-link');
+      downloadLink.href = url;
+      downloadLink.download = `session-${sessionId}.mp3`;
+
+      audio.addEventListener('timeupdate', updateSeek);
+      audio.addEventListener('loadedmetadata', updateSeek);
+      audio.addEventListener('ended', () => setPlayIcon(false));
+    }
+
+    function formatTime(secs) {
+      if (!isFinite(secs)) return '0:00';
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function updateSeek() {
+      const audio = document.getElementById('audio-el');
+      const seek = document.getElementById('seek-bar');
+      const display = document.getElementById('time-display');
+
+      if (audio.duration && isFinite(audio.duration)) {
+        seek.value = (audio.currentTime / audio.duration) * 100;
+        display.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+      }
+    }
+
+    function setPlayIcon(playing) {
+      document.getElementById('icon-play').style.display = playing ? 'none' : 'block';
+      document.getElementById('icon-pause').style.display = playing ? 'block' : 'none';
+    }
+
+    document.getElementById('play-btn').addEventListener('click', () => {
+      const audio = document.getElementById('audio-el');
+      if (audio.paused) {
+        audio.play();
+        setPlayIcon(true);
+      } else {
+        audio.pause();
+        setPlayIcon(false);
+      }
+    });
+
+    document.getElementById('seek-bar').addEventListener('input', () => {
+      const audio = document.getElementById('audio-el');
+      const seek = document.getElementById('seek-bar');
+      if (audio.duration && isFinite(audio.duration)) {
+        audio.currentTime = (parseFloat(seek.value) / 100) * audio.duration;
+      }
+    });
+
+    // ─── New session ──────────────────────────────────────────────────────────
+    document.getElementById('btn-new-session').addEventListener('click', () => {
+      const audio = document.getElementById('audio-el');
+      audio.pause();
+      audio.src = '';
+      audio.removeEventListener('timeupdate', updateSeek);
+      audio.removeEventListener('loadedmetadata', updateSeek);
+      setPlayIcon(false);
+      currentSessionId = null;
+      currentAudioUrl = null;
+      document.getElementById('topic-input').value = '';
+      document.getElementById('form-error').style.display = 'none';
+      showView('view-form');
+    });
+  </script>
+</body>
+</html>
