@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plan — Dashboard</title>
+</head>
+<body>
+  <h1>Your Plan</h1>
+
+  <p>Current plan: <strong id="current-plan"></strong></p>
+  <p>Status: <span id="sub-status"></span></p>
+  <p>Period ends: <span id="period-end"></span></p>
+
+  <div id="plans-list"></div>
+
+  <div id="paywall-modal" hidden>
+    <h2 id="paywall-title"></h2>
+    <p id="paywall-description"></p>
+    <button id="paywall-upgrade-btn">Upgrade</button>
+    <button id="paywall-close-btn">Not now</button>
+  </div>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import subscription from "../../lib/subscription.js";
+    import paywall from "../../components/paywall.js";
+    import toast from "../../components/toast.js";
+    import { allPlans } from "../../plans.js";
+
+    await auth.init();
+    if (!auth.isAuthenticated()) window.location.href = "/";
+
+    paywall.init();
+
+    const status = await subscription.getStatus();
+    document.getElementById("current-plan").textContent = status.plan;
+    document.getElementById("sub-status").textContent = status.subscription_status ?? "—";
+    document.getElementById("period-end").textContent =
+      status.current_period_end
+        ? new Date(status.current_period_end).toLocaleDateString()
+        : "—";
+
+    const list = document.getElementById("plans-list");
+    allPlans().forEach((plan) => {
+      const btn = document.createElement("button");
+      btn.textContent = `Upgrade to ${plan.name} — $${plan.price}/mo`;
+      btn.disabled = plan.key === status.plan;
+      btn.addEventListener("click", async () => {
+        try {
+          await subscription.upgrade(plan.key);
+        } catch (err) {
+          toast.show(err.message, "error");
+        }
+      });
+      list.appendChild(btn);
+    });
+
+    // Handle ?success=1 / ?canceled=1
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success")) toast.show("Subscription activated!", "success");
+    if (params.get("canceled")) toast.show("Checkout canceled.", "info");
+  </script>
+</body>
+</html>

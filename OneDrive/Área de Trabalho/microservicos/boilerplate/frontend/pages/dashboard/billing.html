@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Billing — Dashboard</title>
+</head>
+<body>
+  <h1>Billing</h1>
+
+  <p>Plan: <strong id="plan-name"></strong></p>
+  <p>Status: <span id="sub-status"></span></p>
+  <p>Next renewal: <span id="renewal-date"></span></p>
+
+  <button id="portal-btn">Manage Billing (Stripe Portal)</button>
+  <a href="/dashboard/cancel" id="cancel-link">Cancel subscription</a>
+  <button id="reactivate-btn" hidden>Reactivate Subscription</button>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import subscription from "../../lib/subscription.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+    if (!auth.isAuthenticated()) window.location.href = "/";
+
+    const status = await subscription.getStatus();
+    document.getElementById("plan-name").textContent = status.plan;
+    document.getElementById("sub-status").textContent = status.subscription_status ?? "—";
+    document.getElementById("renewal-date").textContent = status.current_period_end
+      ? new Date(status.current_period_end).toLocaleDateString()
+      : "—";
+
+    if (status.subscription_status === "canceled") {
+      document.getElementById("reactivate-btn").hidden = false;
+      document.getElementById("cancel-link").hidden = true;
+    }
+
+    document.getElementById("portal-btn").addEventListener("click", async () => {
+      try {
+        await subscription.openPortal();
+      } catch (err) {
+        toast.show(err.message, "error");
+      }
+    });
+
+    document.getElementById("reactivate-btn").addEventListener("click", async () => {
+      try {
+        await subscription.reactivate();
+        toast.show("Subscription reactivated!", "success");
+        window.location.reload();
+      } catch (err) {
+        toast.show(err.message, "error");
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cancel Subscription — Dashboard</title>
+</head>
+<body>
+  <h1>Cancel Subscription</h1>
+  <p>We're sorry to see you go. Your access continues until the end of your billing period.</p>
+
+  <form id="cancel-form">
+    <label>
+      Reason (optional)
+      <select id="cancel-reason">
+        <option value="">Select a reason…</option>
+        <option value="too_expensive">Too expensive</option>
+        <option value="missing_features">Missing features I need</option>
+        <option value="not_using">Not using it enough</option>
+        <option value="switching">Switching to another product</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+    <label>
+      Additional feedback (optional)
+      <textarea id="cancel-feedback" rows="4" placeholder="Tell us more…"></textarea>
+    </label>
+    <button type="submit" id="cancel-btn">Cancel Subscription</button>
+    <a href="/dashboard/plan">Never mind, keep my subscription</a>
+  </form>
+
+  <p id="cancel-message"></p>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import subscription from "../../lib/subscription.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+    if (!auth.isAuthenticated()) window.location.href = "/";
+
+    document.getElementById("cancel-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const reason = document.getElementById("cancel-reason").value;
+      const feedback = document.getElementById("cancel-feedback").value;
+
+      try {
+        document.getElementById("cancel-btn").disabled = true;
+        const result = await subscription.cancel(reason, feedback);
+        toast.show(`Subscription cancelled. Access until ${result.period_end}.`, "success");
+        setTimeout(() => { window.location.href = "/dashboard/plan"; }, 2000);
+      } catch (err) {
+        toast.show(err.message, "error");
+        document.getElementById("cancel-btn").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Detail — Admin</title>
+</head>
+<body>
+  <h1>User Detail</h1>
+  <a href="/pages/admin/users.html">← Back to Users</a>
+
+  <dl id="user-detail"></dl>
+
+  <h2>Override Plan</h2>
+  <select id="plan-select">
+    <option value="free">Free</option>
+    <option value="pro">Pro</option>
+  </select>
+  <button id="override-btn">Apply Plan Override</button>
+
+  <h2>Impersonate</h2>
+  <button id="impersonate-btn">Impersonate this user</button>
+
+  <p id="action-message"></p>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import adminLib from "../../lib/admin.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+    if (!auth.isAdmin()) window.location.href = "/dashboard/account";
+
+    const params = new URLSearchParams(window.location.search);
+    const userId = parseInt(params.get("id"));
+
+    if (!userId) {
+      document.body.innerHTML = "<p>No user ID specified.</p>";
+    } else {
+      const user = await adminLib.getUser(userId);
+      const dl = document.getElementById("user-detail");
+
+      [
+        ["ID", user.id],
+        ["Email", user.email],
+        ["Name", user.name ?? "—"],
+        ["Plan", user.plan],
+        ["Status", user.subscription_status ?? "—"],
+        ["Admin", user.is_admin ? "Yes" : "No"],
+        ["Stripe Customer", user.stripe_customer_id ?? "—"],
+        ["Created", new Date(user.created_at).toLocaleString()],
+      ].forEach(([label, value]) => {
+        dl.innerHTML += `<dt>${label}</dt><dd>${value}</dd>`;
+      });
+
+      document.getElementById("plan-select").value = user.plan;
+
+      document.getElementById("override-btn").addEventListener("click", async () => {
+        const planKey = document.getElementById("plan-select").value;
+        try {
+          const result = await adminLib.overridePlan(userId, planKey);
+          toast.show(result.message, "success");
+        } catch (err) {
+          toast.show(err.message, "error");
+        }
+      });
+
+      document.getElementById("impersonate-btn").addEventListener("click", async () => {
+        try {
+          const result = await adminLib.impersonate(userId);
+          localStorage.setItem("access_token", result.access_token);
+          toast.show(`Impersonating ${result.impersonating}. Redirecting…`, "info");
+          setTimeout(() => { window.location.href = "/dashboard/account"; }, 1500);
+        } catch (err) {
+          toast.show(err.message, "error");
+        }
+      });
+    }
+  </script>
+</body>
+</html>

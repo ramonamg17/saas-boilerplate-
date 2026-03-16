@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Users — Admin</title>
+</head>
+<body>
+  <h1>Admin — Users</h1>
+
+  <div>
+    <input id="search-input" type="text" placeholder="Search by email…">
+    <select id="plan-filter">
+      <option value="">All plans</option>
+      <option value="free">Free</option>
+      <option value="pro">Pro</option>
+    </select>
+    <button id="search-btn">Filter</button>
+  </div>
+
+  <table id="users-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Email</th><th>Name</th><th>Plan</th>
+        <th>Status</th><th>Created</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="users-body"></tbody>
+  </table>
+
+  <div>
+    <button id="prev-btn">Previous</button>
+    <span id="page-label">Page 1</span>
+    <button id="next-btn">Next</button>
+  </div>
+
+  <p id="stats-summary"></p>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import adminLib from "../../lib/admin.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+    if (!auth.isAdmin()) window.location.href = "/dashboard/account";
+
+    let page = 1;
+
+    async function loadStats() {
+      const stats = await adminLib.getStats();
+      document.getElementById("stats-summary").textContent =
+        `Total: ${stats.total_users} users | Active subs: ${stats.active_subscriptions} | New today: ${stats.new_users_today}`;
+    }
+
+    async function loadUsers() {
+      const search = document.getElementById("search-input").value;
+      const plan = document.getElementById("plan-filter").value;
+
+      try {
+        const { users } = await adminLib.listUsers({ page, search, plan });
+        const tbody = document.getElementById("users-body");
+        tbody.innerHTML = "";
+
+        users.forEach((u) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${u.id}</td>
+            <td>${u.email}</td>
+            <td>${u.name ?? "—"}</td>
+            <td>${u.plan}</td>
+            <td>${u.subscription_status ?? "—"}</td>
+            <td>${new Date(u.created_at).toLocaleDateString()}</td>
+            <td>
+              <a href="/pages/admin/user-detail.html?id=${u.id}">View</a>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("page-label").textContent = `Page ${page}`;
+        document.getElementById("prev-btn").disabled = page <= 1;
+      } catch (err) {
+        toast.show(err.message, "error");
+      }
+    }
+
+    document.getElementById("search-btn").addEventListener("click", () => {
+      page = 1;
+      loadUsers();
+    });
+    document.getElementById("prev-btn").addEventListener("click", () => { page--; loadUsers(); });
+    document.getElementById("next-btn").addEventListener("click", () => { page++; loadUsers(); });
+
+    await Promise.all([loadStats(), loadUsers()]);
+  </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Contact Support — Dashboard</title>
+</head>
+<body>
+  <h1>Contact Support</h1>
+
+  <form id="contact-form">
+    <label>
+      Message
+      <textarea id="message-input" rows="6" placeholder="Describe your issue or question…" required></textarea>
+    </label>
+    <button type="submit" id="send-btn">Send Message</button>
+  </form>
+
+  <p id="contact-message"></p>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import api from "../../lib/api.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+    if (!auth.isAuthenticated()) window.location.href = "/";
+
+    document.getElementById("contact-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = document.getElementById("message-input").value.trim();
+
+      try {
+        document.getElementById("send-btn").disabled = true;
+        await api.post("/api/user/contact", { message });
+        toast.show("Message sent! We'll get back to you soon.", "success");
+        document.getElementById("contact-form").reset();
+      } catch (err) {
+        toast.show(err.message, "error");
+      } finally {
+        document.getElementById("send-btn").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

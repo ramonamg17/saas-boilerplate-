@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign in to {{APP_NAME}}</title>
+</head>
+<body style="font-family:sans-serif;max-width:480px;margin:40px auto;color:#111;">
+  <h2>Sign in to {{APP_NAME}}</h2>
+  <p>Click the button below to sign in. This link expires in 15 minutes and can only be used once.</p>
+
+  <p style="text-align:center;margin:32px 0;">
+    <a href="{{MAGIC_LINK}}"
+       style="background:#000;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">
+      Sign in
+    </a>
+  </p>
+
+  <p style="color:#666;font-size:13px;">
+    If you didn't request this, you can safely ignore this email.<br>
+    The link will expire on its own.
+  </p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
+  <p style="color:#999;font-size:12px;">
+    {{APP_NAME}} &bull; Questions? <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>
+  </p>
+</body>
+</html>

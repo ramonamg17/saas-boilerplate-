@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Failed — {{APP_NAME}}</title>
+</head>
+<body style="font-family:sans-serif;max-width:480px;margin:40px auto;color:#111;">
+  <h2>Action required: payment failed</h2>
+  <p>Hi {{USER_NAME}}, we were unable to process your payment for {{APP_NAME}}.</p>
+
+  <p>To keep your subscription active, please update your payment method:</p>
+
+  <p style="text-align:center;margin:32px 0;">
+    <a href="{{FRONTEND_URL}}/dashboard/billing"
+       style="background:#c00;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">
+      Update Payment Method
+    </a>
+  </p>
+
+  <p>If you need help, contact us at <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>.</p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
+  <p style="color:#999;font-size:12px;">{{APP_NAME}}</p>
+</body>
+</html>

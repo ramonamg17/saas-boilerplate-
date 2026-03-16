@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cookie Policy — {{APP_NAME}}</title>
+</head>
+<body>
+  <h1>Cookie Policy</h1>
+  <p><em>Last updated: {{LAST_UPDATED}}</em></p>
+
+  <p>{{APP_NAME}} uses browser localStorage (not traditional cookies) for session management.</p>
+
+  <h2>What We Store Locally</h2>
+  <ul>
+    <li><code>access_token</code> — your authentication JWT</li>
+    <li><code>auth_user</code> — cached user profile</li>
+    <li><code>guest_session_id</code> — anonymous session ID (if enabled)</li>
+    <li><code>guest_action_count</code> — count of actions taken as a guest</li>
+  </ul>
+
+  <h2>Third-Party Cookies</h2>
+  <p>Stripe may set cookies for fraud prevention and payment processing. See <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe's Privacy Policy</a>.</p>
+
+  <h2>Managing Storage</h2>
+  <p>You can clear localStorage at any time through your browser's developer tools. This will sign you out.</p>
+
+  <h2>Contact</h2>
+  <p><a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a></p>
+</body>
+</html>

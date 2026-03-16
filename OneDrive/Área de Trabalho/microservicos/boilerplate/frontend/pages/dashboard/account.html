@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Account — Dashboard</title>
+</head>
+<body>
+  <h1>Account Settings</h1>
+
+  <form id="settings-form">
+    <label>
+      Name
+      <input id="name-input" type="text" placeholder="Your name">
+    </label>
+    <button type="submit">Save</button>
+  </form>
+
+  <p id="settings-message"></p>
+
+  <hr>
+  <p>Email: <span id="user-email"></span></p>
+  <p>Member since: <span id="user-since"></span></p>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import api from "../../lib/api.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+    if (!auth.isAuthenticated()) {
+      window.location.href = "/";
+    }
+
+    const user = auth.getUser();
+    document.getElementById("user-email").textContent = user.email;
+    document.getElementById("user-since").textContent = new Date(user.created_at).toLocaleDateString();
+    document.getElementById("name-input").value = user.name ?? "";
+
+    document.getElementById("settings-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name-input").value.trim();
+      try {
+        await api.patch("/api/user/settings", { name });
+        toast.show("Settings saved.", "success");
+      } catch (err) {
+        toast.show(err.message, "error");
+      }
+    });
+  </script>
+</body>
+</html>
