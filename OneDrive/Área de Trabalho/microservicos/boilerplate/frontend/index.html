@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title">My SaaS App</title>
+  <!-- LINK STYLESHEET HERE -->
+</head>
+<body>
+
+  <!-- NAVIGATION -->
+  <nav>
+    <span id="nav-logo"></span>
+    <button id="nav-login-btn">Login</button>
+    <button id="nav-signup-btn">Sign up</button>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <h1><!-- ADD HERO CONTENT --></h1>
+    <p></p>
+    <button id="hero-cta-btn">Get started free</button>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <!-- ADD FEATURES -->
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <div id="pricing-cards"></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p id="footer-app-name"></p>
+    <nav>
+      <a href="./pages/legal/privacy.html">Privacy Policy</a>
+      <a href="./pages/legal/terms.html">Terms of Service</a>
+      <a href="./pages/legal/cookies.html">Cookie Policy</a>
+      <a href="./pages/legal/refund.html">Refund Policy</a>
+    </nav>
+    <p>Support: <a id="footer-support-email" href="#"></a></p>
+  </footer>
+
+  <!-- AUTH MODAL -->
+  <div id="auth-modal" hidden>
+    <form id="auth-form">
+      <input id="auth-email" type="email" placeholder="you@example.com" required />
+      <button type="submit">Send magic link</button>
+    </form>
+    <button id="auth-google-btn">Sign in with Google</button>
+    <p id="auth-message"></p>
+    <button id="auth-modal-close">×</button>
+  </div>
+
+  <!-- GUEST NUDGE -->
+  <div id="guest-nudge" hidden>
+    <span id="guest-nudge-text">Create a free account to save your progress.</span>
+    <button id="guest-nudge-signup-btn">Sign up free</button>
+    <button id="guest-nudge-close-btn">×</button>
+  </div>
+
+  <script type="module">
+    import auth from "./lib/auth.js";
+    import authModal from "./components/auth-modal.js";
+    import guestNudge from "./components/guest-nudge.js";
+    import toast from "./components/toast.js";
+    import { allPlans } from "./plans.js";
+    import config from "./config.js";
+
+    // ── App identity ──────────────────────────────────────────────
+    document.getElementById("page-title").textContent = config.APP_NAME;
+    document.getElementById("nav-logo").textContent = config.APP_NAME;
+    document.getElementById("footer-app-name").textContent = config.APP_NAME;
+    const emailLink = document.getElementById("footer-support-email");
+    emailLink.textContent = config.SUPPORT_EMAIL;
+    emailLink.href = `mailto:${config.SUPPORT_EMAIL}`;
+
+    // ── Auth init ─────────────────────────────────────────────────
+    await auth.init();
+
+    if (auth.isAuthenticated()) {
+      window.location.href = "/pages/dashboard/account.html";
+    }
+
+    // ── ?deleted=1 toast ──────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deleted") === "1") {
+      toast.show("Your account has been deleted.", "success");
+    }
+
+    // ── Components ────────────────────────────────────────────────
+    authModal.init();
+    guestNudge.init({ onSignup: () => authModal.show() });
+
+    // ── auth:login → redirect ─────────────────────────────────────
+    window.addEventListener("auth:login", () => {
+      window.location.href = "/pages/dashboard/account.html";
+    });
+
+    // ── Open auth modal ───────────────────────────────────────────
+    function openModal() { authModal.show(); }
+    document.getElementById("nav-login-btn").addEventListener("click", openModal);
+    document.getElementById("nav-signup-btn").addEventListener("click", openModal);
+    document.getElementById("hero-cta-btn").addEventListener("click", openModal);
+
+    // ── Pricing cards ─────────────────────────────────────────────
+    const container = document.getElementById("pricing-cards");
+    for (const plan of allPlans()) {
+      const card = document.createElement("div");
+      card.className = "pricing-card";
+
+      const name = document.createElement("h3");
+      name.textContent = plan.name;
+
+      const price = document.createElement("p");
+      price.textContent = plan.price === 0
+        ? "Free"
+        : `$${plan.price}/mo${plan.trialDays ? ` — ${plan.trialDays}-day free trial` : ""}`;
+
+      const featureList = document.createElement("ul");
+      for (const f of plan.features) {
+        const li = document.createElement("li");
+        li.textContent = f;
+        featureList.appendChild(li);
+      }
+
+      const cta = document.createElement("button");
+      cta.textContent = plan.price === 0 ? "Get started free" : "Start free trial";
+      cta.addEventListener("click", openModal);
+
+      card.appendChild(name);
+      card.appendChild(price);
+      card.appendChild(featureList);
+      card.appendChild(cta);
+      container.appendChild(card);
+    }
+  </script>
+
+</body>
+</html>

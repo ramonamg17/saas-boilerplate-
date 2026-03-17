@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing you in…</title>
+</head>
+<body>
+  <p id="status">Signing you in…</p>
+
+  <script type="module">
+    import auth from "../../../lib/auth.js";
+    import toast from "../../../components/toast.js";
+
+    await auth.init();
+
+    try {
+      await auth.handleGoogleCallback("/pages/dashboard/account.html");
+    } catch (err) {
+      document.getElementById("status").textContent = "Sign-in failed.";
+      toast.show(err.message || "Google sign-in failed. Please try again.", "error");
+      setTimeout(() => { window.location.href = "/"; }, 3000);
+    }
+  </script>
+</body>
+</html>

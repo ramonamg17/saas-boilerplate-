@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verifying your link…</title>
+</head>
+<body>
+  <p id="status">Verifying your link…</p>
+
+  <script type="module">
+    import auth from "../../lib/auth.js";
+    import toast from "../../components/toast.js";
+
+    await auth.init();
+
+    try {
+      await auth.handleMagicLinkCallback("/pages/dashboard/account.html");
+    } catch (err) {
+      document.getElementById("status").textContent = "Verification failed.";
+      toast.show(err.message || "Invalid or expired link.", "error");
+      setTimeout(() => { window.location.href = "/"; }, 3000);
+    }
+  </script>
+</body>
+</html>
