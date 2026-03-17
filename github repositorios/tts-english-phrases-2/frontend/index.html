@@ -504,6 +504,8 @@
     let selectedDuration = 10;
     let currentSessionId = null;
     let pollInterval = null;
+    let crawlInterval = null;
+    let crawlProgress = 40;
     let currentAudioUrl = null;
     let formData = {};
 
@@ -651,6 +653,29 @@
       error: 'Error',
     };
 
+    function startCrawl(startPct) {
+      stopCrawl();
+      crawlProgress = startPct;
+      crawlInterval = setInterval(() => {
+        if (crawlProgress < 74) {
+          crawlProgress += 0.1;
+          const bar = document.getElementById('progress-bar');
+          const pct = document.getElementById('progress-pct');
+          if (bar) bar.style.width = `${crawlProgress.toFixed(1)}%`;
+          if (pct) pct.textContent = `${Math.round(crawlProgress)}%`;
+        } else {
+          stopCrawl();
+        }
+      }, 500);
+    }
+
+    function stopCrawl() {
+      if (crawlInterval) {
+        clearInterval(crawlInterval);
+        crawlInterval = null;
+      }
+    }
+
     function startPolling(sessionId) {
       if (pollInterval) clearInterval(pollInterval);
       pollInterval = setInterval(() => pollStatus(sessionId), 2000);
@@ -658,6 +683,7 @@
     }
 
     function stopPolling() {
+      stopCrawl();
       if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
@@ -674,9 +700,15 @@
         const pct = document.getElementById('progress-pct');
         const label = document.getElementById('step-label');
 
-        bar.style.width = `${data.progress}%`;
-        pct.textContent = `${data.progress}%`;
-        label.textContent = STEP_LABELS[data.status] || data.status;
+        if (data.status === 'generating_audio') {
+          if (!crawlInterval) startCrawl(data.progress);
+          label.textContent = STEP_LABELS[data.status];
+        } else {
+          stopCrawl();
+          bar.style.width = `${data.progress}%`;
+          pct.textContent = `${data.progress}%`;
+          label.textContent = STEP_LABELS[data.status] || data.status;
+        }
 
         if (data.status === 'done' && data.audio_url) {
           stopPolling();
