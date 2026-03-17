@@ -12,7 +12,7 @@ const config = {
   SUPPORT_EMAIL: "support@example.com",  // EDIT PER PROJECT
 
   // ── API ──────────────────────────────────────────────────────
-  API_BASE_URL: "http://localhost:8000",  // EDIT PER PROJECT (prod: Railway URL)
+  API_BASE_URL: "http://localhost:8002",  // EDIT PER PROJECT (prod: Railway URL)
 
   // ── Stripe ───────────────────────────────────────────────────
   STRIPE_PUBLISHABLE_KEY: "pk_test_placeholder",  // EDIT PER PROJECT

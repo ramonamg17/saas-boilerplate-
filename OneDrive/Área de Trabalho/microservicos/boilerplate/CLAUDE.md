@@ -34,12 +34,19 @@ Never write plan names, prices, or limits anywhere else.
 
 Only configure via `config.py`, `plans.py`, and their frontend mirrors.
 
-## Running tests
-```bash
-cd backend
-python -m pytest tests/unit tests/integration -v
-```
-All tests must pass before committing.
+## Mandatory workflow after any code change
+1. Run tests:
+   ```bash
+   cd backend
+   python -m pytest tests/unit tests/integration -v
+   ```
+2. If **all tests pass** → commit immediately:
+   ```bash
+   git add -A && git commit -m "feat|fix|refactor: <description>"
+   ```
+3. If **any test fails** → fix first, only commit after everything is green.
+
+**Never commit broken code.**
 
 ## Dev server
 ```bash

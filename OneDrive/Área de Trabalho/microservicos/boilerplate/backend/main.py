@@ -4,8 +4,10 @@ main.py — FastAPI application entry point.
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.config import settings
 from backend.database import create_tables
@@ -25,7 +27,24 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# ── CORS ─────────────────────────────────────────────────────────────
+# ── Global error handler ─────────────────────────────────────────────
+# Must be added BEFORE CORSMiddleware so it sits INSIDE it in the stack.
+# (Starlette stacks middlewares in reverse add order: last added = outermost.)
+# Unhandled exceptions caught here return a JSONResponse that travels back
+# outward through CORSMiddleware, which then adds the CORS headers.
+class _CatchAllMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error"},
+            )
+
+app.add_middleware(_CatchAllMiddleware)
+
+# ── CORS (added last = outermost, wraps everything including error handler) ──
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
