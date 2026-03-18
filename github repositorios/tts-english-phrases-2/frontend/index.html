@@ -677,6 +677,7 @@
     }
 
     function startPolling(sessionId) {
+      crawlProgress = 40; // reset for new session
       if (pollInterval) clearInterval(pollInterval);
       pollInterval = setInterval(() => pollStatus(sessionId), 2000);
       pollStatus(sessionId);
@@ -701,7 +702,7 @@
         const label = document.getElementById('step-label');
 
         if (data.status === 'generating_audio') {
-          if (!crawlInterval) startCrawl(data.progress);
+          if (!crawlInterval && crawlProgress < 74) startCrawl(data.progress);
           label.textContent = STEP_LABELS[data.status];
         } else {
           stopCrawl();
