@@ -264,6 +264,24 @@
       margin-bottom: 20px;
     }
 
+    /* ── Preview notice ── */
+    .preview-notice {
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    .preview-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--success);
+      margin-bottom: 10px;
+    }
+
+    .preview-notice .player-wrap {
+      margin-bottom: 0;
+    }
+
     /* ── Player ── */
     .player-wrap {
       background: var(--surface2);
@@ -277,6 +295,10 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 14px;
+    }
+
+    .preview-notice .player-controls {
+      margin-bottom: 0;
     }
 
     .play-btn {
@@ -463,6 +485,24 @@
       <span id="progress-pct">0%</span>
       <span id="progress-eta">Generating your session…</span>
     </div>
+
+    <!-- Mini preview player — shown when first preview is ready -->
+    <div id="preview-notice" class="preview-notice" style="display:none;">
+      <div class="preview-label">▶ Preview ready — more phrases loading…</div>
+      <div class="player-wrap">
+        <div class="player-controls">
+          <button class="play-btn" id="preview-play-btn" aria-label="Play/Pause Preview">
+            <svg id="preview-icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="preview-icon-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+          </button>
+          <div class="seek-wrap">
+            <input type="range" id="preview-seek-bar" min="0" max="100" value="0" step="0.1" />
+          </div>
+          <div class="time-display" id="preview-time-display">0:00 / 0:00</div>
+        </div>
+      </div>
+      <audio id="preview-audio-el" preload="auto"></audio>
+    </div>
   </div>
 
   <!-- ═══════════════════════════════════════════
@@ -484,7 +524,7 @@
       </div>
     </div>
 
-    <a class="btn btn-download" id="download-link" href="#" download>
+    <a class="btn btn-download" id="download-link" href="#" download style="display:none;">
       <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-7 9l-7-7h4V3h6v8h4l-7 7zm-9 4h16v-2H3v2z"/></svg>
       Download MP3
     </a>
@@ -496,18 +536,39 @@
 
   <script>
     // ─── Config ───────────────────────────────────────────────────────────────
-    // Change this to your Railway backend URL before deploying.
-    // For local dev: http://localhost:8000
     const API_URL = 'http://localhost:8000';
+
+    // ─── Step messages ────────────────────────────────────────────────────────
+    const STEP_MESSAGES = {
+      queued:             ["Getting things ready…", "Warming up…"],
+      generating_phrases: ["Crafting your phrases…", "Designing your session…", "Building sentences just for you…"],
+      moderating:         ["Checking content quality…", "Making sure everything's just right…"],
+      generating_audio:   [
+        "Giving each phrase a voice…",
+        "Recording in a native accent…",
+        "Hang tight, almost there…",
+        null,  // replaced with "Phrase X of Y ready…"
+      ],
+      assembling:         ["Putting it all together…", "Mixing your session…", "Almost done…"],
+      uploading:          ["Saving to the cloud…", "Finalizing your session…"],
+    };
 
     // ─── State ────────────────────────────────────────────────────────────────
     let selectedDuration = 10;
     let currentSessionId = null;
     let pollInterval = null;
-    let crawlInterval = null;
-    let crawlProgress = 40;
     let currentAudioUrl = null;
     let formData = {};
+
+    let sessionEstimatedSeconds = 0;
+    let sessionStartTime = 0;
+    let etaInterval = null;
+    let messageRotateInterval = null;
+    let currentMessageIndex = 0;
+    let currentStep = null;
+    let currentPhrasesDone = 0;
+    let currentPhrasesTotal = 0;
+    let latestPreviewUrl = null;
 
     // ─── View helpers ─────────────────────────────────────────────────────────
     function showView(id) {
@@ -631,6 +692,14 @@
         const data = await res.json();
         currentSessionId = data.session_id;
 
+        // Reset loading view state
+        latestPreviewUrl = null;
+        document.getElementById('preview-notice').style.display = 'none';
+        const previewAudio = document.getElementById('preview-audio-el');
+        previewAudio.pause();
+        previewAudio.src = '';
+        setPreviewPlayIcon(false);
+
         showView('view-loading');
         startPolling(currentSessionId);
       } catch (err) {
@@ -641,54 +710,77 @@
       }
     });
 
-    // ─── Status polling ───────────────────────────────────────────────────────
-    const STEP_LABELS = {
-      queued: 'Queued…',
-      generating_phrases: 'Generating phrases…',
-      moderating: 'Moderating content…',
-      generating_audio: 'Generating audio…',
-      assembling: 'Assembling audio…',
-      uploading: 'Uploading…',
-      done: 'Done!',
-      error: 'Error',
-    };
-
-    function startCrawl(startPct) {
-      stopCrawl();
-      crawlProgress = startPct;
-      crawlInterval = setInterval(() => {
-        if (crawlProgress < 74) {
-          crawlProgress += 0.1;
-          const bar = document.getElementById('progress-bar');
-          const pct = document.getElementById('progress-pct');
-          if (bar) bar.style.width = `${crawlProgress.toFixed(1)}%`;
-          if (pct) pct.textContent = `${Math.round(crawlProgress)}%`;
-        } else {
-          stopCrawl();
-        }
-      }, 500);
+    // ─── ETA ──────────────────────────────────────────────────────────────────
+    function startEtaInterval() {
+      stopEtaInterval();
+      etaInterval = setInterval(updateEta, 1000);
     }
 
-    function stopCrawl() {
-      if (crawlInterval) {
-        clearInterval(crawlInterval);
-        crawlInterval = null;
+    function stopEtaInterval() {
+      if (etaInterval) {
+        clearInterval(etaInterval);
+        etaInterval = null;
       }
     }
 
+    function updateEta() {
+      const etaEl = document.getElementById('progress-eta');
+      if (!sessionStartTime || !sessionEstimatedSeconds) return;
+      const elapsed = Date.now() / 1000 - sessionStartTime;
+      const remaining = Math.max(0, sessionEstimatedSeconds - elapsed);
+      const mins = Math.ceil(remaining / 60);
+      etaEl.textContent = remaining > 10 ? `~${mins} min remaining` : 'Almost done…';
+    }
+
+    // ─── Rotating messages ────────────────────────────────────────────────────
+    function rotateMessage() {
+      const messages = STEP_MESSAGES[currentStep];
+      if (!messages) return;
+      const label = document.getElementById('step-label');
+      const msg = messages[currentMessageIndex % messages.length];
+      if (msg === null) {
+        if (currentPhrasesDone && currentPhrasesTotal) {
+          label.textContent = `Phrase ${currentPhrasesDone} of ${currentPhrasesTotal} ready…`;
+        } else {
+          label.textContent = 'Generating audio…';
+        }
+      } else {
+        label.textContent = msg;
+      }
+      currentMessageIndex++;
+    }
+
+    function startMessageRotation(step) {
+      if (step !== currentStep) {
+        currentStep = step;
+        currentMessageIndex = 0;
+        rotateMessage();
+        stopMessageRotation();
+        messageRotateInterval = setInterval(rotateMessage, 4000);
+      }
+    }
+
+    function stopMessageRotation() {
+      if (messageRotateInterval) {
+        clearInterval(messageRotateInterval);
+        messageRotateInterval = null;
+      }
+    }
+
+    // ─── Status polling ───────────────────────────────────────────────────────
     function startPolling(sessionId) {
-      crawlProgress = 40; // reset for new session
       if (pollInterval) clearInterval(pollInterval);
       pollInterval = setInterval(() => pollStatus(sessionId), 2000);
       pollStatus(sessionId);
     }
 
     function stopPolling() {
-      stopCrawl();
       if (pollInterval) {
         clearInterval(pollInterval);
         pollInterval = null;
       }
+      stopEtaInterval();
+      stopMessageRotation();
     }
 
     async function pollStatus(sessionId) {
@@ -697,24 +789,45 @@
         if (!res.ok) return;
         const data = await res.json();
 
+        // Store timing info on first poll
+        if (data.estimated_seconds && !sessionEstimatedSeconds) {
+          sessionEstimatedSeconds = data.estimated_seconds;
+          sessionStartTime = data.start_time;
+          startEtaInterval();
+        }
+
+        // Real progress from backend — no fake crawl
         const bar = document.getElementById('progress-bar');
         const pct = document.getElementById('progress-pct');
-        const label = document.getElementById('step-label');
+        bar.style.width = `${data.progress}%`;
+        pct.textContent = `${data.progress}%`;
 
-        if (data.status === 'generating_audio') {
-          if (!crawlInterval && crawlProgress < 74) startCrawl(data.progress);
-          label.textContent = STEP_LABELS[data.status];
-        } else {
-          stopCrawl();
-          bar.style.width = `${data.progress}%`;
-          pct.textContent = `${data.progress}%`;
-          label.textContent = STEP_LABELS[data.status] || data.status;
+        // Update phrase counts for rotating message
+        if (data.phrases_done != null) currentPhrasesDone = data.phrases_done;
+        if (data.phrases_total != null) currentPhrasesTotal = data.phrases_total;
+
+        // Rotate step messages
+        startMessageRotation(data.status);
+
+        // Preview player
+        if (data.preview_url && data.preview_url !== latestPreviewUrl) {
+          latestPreviewUrl = data.preview_url;
+          const previewAudio = document.getElementById('preview-audio-el');
+          if (!previewAudio.paused) {
+            // Already playing — just update src so next play gets newer version
+            previewAudio.src = data.preview_url;
+          } else {
+            loadPreviewPlayer(data.preview_url);
+          }
         }
 
         if (data.status === 'done' && data.audio_url) {
           stopPolling();
           currentAudioUrl = data.audio_url;
-          initPlayer(data.audio_url, sessionId);
+          // Stop preview
+          const previewAudio = document.getElementById('preview-audio-el');
+          previewAudio.pause();
+          showFinalPlayer(data.audio_url);
           showView('view-player');
         } else if (data.status === 'error') {
           stopPolling();
@@ -728,7 +841,58 @@
       }
     }
 
-    // ─── Audio player ─────────────────────────────────────────────────────────
+    // ─── Preview player ───────────────────────────────────────────────────────
+    function loadPreviewPlayer(url) {
+      const notice = document.getElementById('preview-notice');
+      const audio = document.getElementById('preview-audio-el');
+      audio.src = url;
+      notice.style.display = 'block';
+    }
+
+    function setPreviewPlayIcon(playing) {
+      document.getElementById('preview-icon-play').style.display = playing ? 'none' : 'block';
+      document.getElementById('preview-icon-pause').style.display = playing ? 'block' : 'none';
+    }
+
+    function updatePreviewSeek() {
+      const audio = document.getElementById('preview-audio-el');
+      const seek = document.getElementById('preview-seek-bar');
+      const display = document.getElementById('preview-time-display');
+      if (audio.duration && isFinite(audio.duration)) {
+        seek.value = (audio.currentTime / audio.duration) * 100;
+        display.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+      }
+    }
+
+    document.getElementById('preview-play-btn').addEventListener('click', () => {
+      const audio = document.getElementById('preview-audio-el');
+      if (audio.paused) {
+        audio.play();
+        setPreviewPlayIcon(true);
+      } else {
+        audio.pause();
+        setPreviewPlayIcon(false);
+      }
+    });
+
+    document.getElementById('preview-seek-bar').addEventListener('input', () => {
+      const audio = document.getElementById('preview-audio-el');
+      const seek = document.getElementById('preview-seek-bar');
+      if (audio.duration && isFinite(audio.duration)) {
+        audio.currentTime = (parseFloat(seek.value) / 100) * audio.duration;
+      }
+    });
+
+    document.getElementById('preview-audio-el').addEventListener('timeupdate', updatePreviewSeek);
+    document.getElementById('preview-audio-el').addEventListener('loadedmetadata', updatePreviewSeek);
+    document.getElementById('preview-audio-el').addEventListener('ended', () => setPreviewPlayIcon(false));
+
+    // ─── Final player ─────────────────────────────────────────────────────────
+    function showFinalPlayer(url) {
+      initPlayer(url, currentSessionId);
+      document.getElementById('download-link').style.display = 'flex';
+    }
+
     function initPlayer(url, sessionId) {
       const audio = document.getElementById('audio-el');
       audio.src = url;
@@ -792,8 +956,19 @@
       audio.removeEventListener('timeupdate', updateSeek);
       audio.removeEventListener('loadedmetadata', updateSeek);
       setPlayIcon(false);
+
+      // Reset session state
       currentSessionId = null;
       currentAudioUrl = null;
+      sessionEstimatedSeconds = 0;
+      sessionStartTime = 0;
+      currentStep = null;
+      currentMessageIndex = 0;
+      currentPhrasesDone = 0;
+      currentPhrasesTotal = 0;
+      latestPreviewUrl = null;
+
+      document.getElementById('download-link').style.display = 'none';
       document.getElementById('topic-input').value = '';
       document.getElementById('form-error').style.display = 'none';
       showView('view-form');

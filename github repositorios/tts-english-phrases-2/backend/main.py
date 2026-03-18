@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,7 +22,8 @@ from services.deduplicator import deduplicate
 from services.moderator import filter_phrases
 from services.phrase_generator import calc_num_phrases, generate_phrases, interpret_topic
 from services.storage_service import upload_session
-from services.tts_service import generate_all_audio
+from services.timing_service import get_estimate, save_timing
+from services.tts_service import generate_audio_streaming
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,6 +32,7 @@ sessions: dict = {}
 sessions_lock = asyncio.Lock()
 
 MAX_TIMEOUT = int(os.getenv("MAX_GENERATION_TIMEOUT_SECONDS", "120"))
+logger.info(f"MAX_TIMEOUT = {MAX_TIMEOUT}s")
 
 
 @asynccontextmanager
@@ -80,14 +83,23 @@ async def update_status(
     status: str,
     progress: int,
     audio_url: str | None = None,
+    preview_url: str | None = None,
+    phrases_done: int | None = None,
+    phrases_total: int | None = None,
     error: str | None = None,
 ) -> None:
     async with sessions_lock:
+        existing = sessions.get(session_id, {})
         sessions[session_id] = {
             "status": status,
             "progress": progress,
             "audio_url": audio_url,
+            "preview_url": preview_url if preview_url is not None else existing.get("preview_url"),
+            "phrases_done": phrases_done if phrases_done is not None else existing.get("phrases_done", 0),
+            "phrases_total": phrases_total if phrases_total is not None else existing.get("phrases_total", 0),
             "error": error,
+            "start_time": existing.get("start_time"),
+            "estimated_seconds": existing.get("estimated_seconds"),
         }
 
 
@@ -139,19 +151,56 @@ async def run_session_generation(
                 phrases = phrases + safe_additions
                 logger.info(f"[{session_id}] Top-up {attempt + 1}: +{len(safe_additions)} phrases → {len(phrases)} total")
 
+            # ── Streaming audio generation ──────────────────────────────────────
             await update_status(session_id, "generating_audio", 40)
-            audio_chunks = await generate_all_audio(phrases, language=language)
-            logger.info(f"[{session_id}] TTS complete for {len(audio_chunks)} phrases")
+            chunks_by_index: dict[int, tuple[bytes, bytes]] = {}
+            preview_checkpoints = [0.25, 0.50, 0.75]
+            next_cp = 0
+            current_preview_url: str | None = None
+            gen_start = time.time()
 
-            await update_status(session_id, "assembling", 75)
-            final_audio = assemble_session(audio_chunks, target_ms=duration_minutes * 60 * 1000)
+            async for idx, total, chunk in generate_audio_streaming(phrases, language=language):
+                chunks_by_index[idx] = chunk
+                done = len(chunks_by_index)
+                progress = 40 + int(done / total * 34)  # 40% → 74%
+                await update_status(
+                    session_id, "generating_audio", progress,
+                    phrases_done=done, phrases_total=total,
+                    preview_url=current_preview_url,
+                )
+
+                ratio = done / total
+                if next_cp < len(preview_checkpoints) and ratio >= preview_checkpoints[next_cp]:
+                    try:
+                        ordered = [chunks_by_index[j] for j in sorted(chunks_by_index)]
+                        preview_bytes = assemble_session(ordered, target_ms=duration_minutes * 60 * 1000)
+                        version_key = f"sessions/{session_id}_v{next_cp + 1}.mp3"
+                        current_preview_url = await upload_session(version_key, preview_bytes)
+                        next_cp += 1
+                        await update_status(
+                            session_id, "generating_audio", progress,
+                            phrases_done=done, phrases_total=total,
+                            preview_url=current_preview_url,
+                        )
+                        logger.info(f"[{session_id}] Preview v{next_cp} uploaded")
+                    except Exception as preview_err:
+                        logger.warning(f"[{session_id}] Preview upload failed (non-fatal): {preview_err}")
+                        next_cp += 1
+
+            logger.info(f"[{session_id}] TTS complete for {len(chunks_by_index)} phrases")
+            save_timing(duration_minutes, time.time() - gen_start)
+
+            # ── Assemble final audio ────────────────────────────────────────────
+            await update_status(session_id, "assembling", 75, preview_url=current_preview_url)
+            ordered_chunks = [chunks_by_index[j] for j in sorted(chunks_by_index)]
+            final_audio = assemble_session(ordered_chunks, target_ms=duration_minutes * 60 * 1000)
             logger.info(f"[{session_id}] Audio assembled: {len(final_audio)} bytes")
 
-            await update_status(session_id, "uploading", 90)
+            await update_status(session_id, "uploading", 90, preview_url=current_preview_url)
             audio_url = await upload_session(session_id, final_audio)
             logger.info(f"[{session_id}] Uploaded. URL: {audio_url[:60]}...")
 
-            await update_status(session_id, "done", 100, audio_url=audio_url)
+            await update_status(session_id, "done", 100, audio_url=audio_url, preview_url=current_preview_url)
 
     except TimeoutError:
         logger.error(f"[{session_id}] Timed out after {MAX_TIMEOUT}s")
@@ -183,6 +232,11 @@ async def generate_session(req: GenerateSessionRequest, background_tasks: Backgr
             "progress": 0,
             "audio_url": None,
             "error": None,
+            "preview_url": None,
+            "phrases_done": 0,
+            "phrases_total": 0,
+            "start_time": time.time(),
+            "estimated_seconds": get_estimate(req.duration_minutes),
         }
 
     background_tasks.add_task(

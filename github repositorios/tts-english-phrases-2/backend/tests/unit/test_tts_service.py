@@ -10,6 +10,7 @@ from services.tts_service import (
     TTS_SERVICE_URL,
     generate_audio_for_phrase,
     generate_all_audio,
+    generate_audio_streaming,
 )
 from tests.conftest import make_kokoro_response
 
@@ -221,3 +222,94 @@ async def test_generate_all_audio_falls_back_to_english_for_unknown_language():
         await generate_all_audio(phrases, language="Klingon")
 
     assert all(v in VOICE_POOLS["English"] for v in used_voices)
+
+
+# ── generate_audio_streaming ──────────────────────────────────────────────────
+
+async def test_generate_audio_streaming_yields_all_phrases():
+    phrases = ["alpha", "beta", "gamma"]
+
+    with patch(
+        "services.tts_service.generate_audio_for_phrase",
+        new=AsyncMock(return_value=b"AUDIO"),
+    ):
+        results = []
+        async for idx, total, chunk in generate_audio_streaming(phrases):
+            results.append((idx, total, chunk))
+
+    assert len(results) == 3
+    assert all(total == 3 for _, total, _ in results)
+    assert sorted(idx for idx, _, _ in results) == [0, 1, 2]
+
+
+async def test_generate_audio_streaming_yields_normal_and_slow_tuple():
+    phrases = ["hello"]
+
+    with patch(
+        "services.tts_service.generate_audio_for_phrase",
+        new=AsyncMock(return_value=b"AUDIO"),
+    ):
+        results = []
+        async for idx, total, chunk in generate_audio_streaming(phrases):
+            results.append(chunk)
+
+    assert len(results) == 1
+    normal, slow = results[0]
+    assert normal == b"AUDIO"
+    assert slow == b"AUDIO"
+
+
+async def test_generate_audio_streaming_uses_same_voice_per_phrase():
+    phrases = ["alpha", "beta"]
+    calls = []
+
+    async def mock_gen(phrase, voice_id, speed=1.0):
+        calls.append((phrase, voice_id, speed))
+        return b"audio"
+
+    with patch("services.tts_service.generate_audio_for_phrase", new=mock_gen):
+        async for _ in generate_audio_streaming(phrases):
+            pass
+
+    for phrase in phrases:
+        phrase_calls = [c for c in calls if c[0] == phrase]
+        assert len(phrase_calls) == 2
+        assert phrase_calls[0][1] == phrase_calls[1][1]  # same voice
+
+
+async def test_generate_audio_streaming_uses_correct_language_pool():
+    phrases = ["une phrase"]
+    used_voices = []
+
+    async def mock_gen(phrase, voice_id, speed=1.0):
+        used_voices.append(voice_id)
+        return b"audio"
+
+    with patch("services.tts_service.generate_audio_for_phrase", new=mock_gen):
+        async for _ in generate_audio_streaming(phrases, language="French"):
+            pass
+
+    assert all(v in VOICE_POOLS["French"] for v in used_voices)
+
+
+async def test_generate_audio_streaming_falls_back_to_english_for_unknown_language():
+    phrases = ["hello"]
+    used_voices = []
+
+    async def mock_gen(phrase, voice_id, speed=1.0):
+        used_voices.append(voice_id)
+        return b"audio"
+
+    with patch("services.tts_service.generate_audio_for_phrase", new=mock_gen):
+        async for _ in generate_audio_streaming(phrases, language="Klingon"):
+            pass
+
+    assert all(v in VOICE_POOLS["English"] for v in used_voices)
+
+
+async def test_generate_audio_streaming_empty_list():
+    with patch("services.tts_service.generate_audio_for_phrase", new=AsyncMock(return_value=b"")):
+        results = []
+        async for item in generate_audio_streaming([]):
+            results.append(item)
+    assert results == []

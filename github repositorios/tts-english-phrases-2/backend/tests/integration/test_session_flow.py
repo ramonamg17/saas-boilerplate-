@@ -104,6 +104,9 @@ def _all_patches():
             "main.upload_session",
             new=AsyncMock(return_value=FAKE_SIGNED_URL),
         ),
+        # Timing service — prevent writing real timing_data.json; return predictable estimate
+        patch("main.get_estimate", return_value=200),
+        patch("main.save_timing"),
         # Scheduler — suppress real APScheduler startup/shutdown
         patch("main.start_cleanup_scheduler"),
         patch("main.stop_cleanup_scheduler"),
@@ -229,3 +232,85 @@ async def test_valid_durations_accepted():
                 )
                 assert resp.status_code == 200, f"duration {duration} failed"
                 assert "session_id" in resp.json()
+
+
+async def test_session_status_has_timing_fields():
+    """Session status must include start_time and estimated_seconds from the start."""
+    patches = _all_patches()
+    with contextlib.ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/generate-session",
+                json={"language": "Spanish", "topic": "food", "duration_minutes": 5},
+            )
+            session_id = resp.json()["session_id"]
+
+            status_resp = await client.get(f"/session/{session_id}/status")
+            data = status_resp.json()
+
+            assert "start_time" in data
+            assert data["start_time"] is not None
+            assert isinstance(data["start_time"], float)
+
+            assert "estimated_seconds" in data
+            assert isinstance(data["estimated_seconds"], int)
+            assert data["estimated_seconds"] > 0
+
+
+async def test_session_done_status_has_phrase_count_fields():
+    """Final done status must include phrases_done and phrases_total."""
+    patches = _all_patches()
+    with contextlib.ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/generate-session",
+                json={"language": "Spanish", "topic": "food", "duration_minutes": 5},
+            )
+            session_id = resp.json()["session_id"]
+
+            status_data = {}
+            for _ in range(20):
+                status_resp = await client.get(f"/session/{session_id}/status")
+                status_data = status_resp.json()
+                if status_data["status"] in ("done", "error"):
+                    break
+                await asyncio.sleep(0.1)
+
+            assert status_data["status"] == "done"
+            assert "phrases_done" in status_data
+            assert "phrases_total" in status_data
+            assert isinstance(status_data["phrases_done"], int)
+            assert isinstance(status_data["phrases_total"], int)
+
+
+async def test_session_done_status_has_preview_url():
+    """Final done status must include preview_url (set during streaming)."""
+    patches = _all_patches()
+    with contextlib.ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/generate-session",
+                json={"language": "Spanish", "topic": "food", "duration_minutes": 5},
+            )
+            session_id = resp.json()["session_id"]
+
+            status_data = {}
+            for _ in range(20):
+                status_resp = await client.get(f"/session/{session_id}/status")
+                status_data = status_resp.json()
+                if status_data["status"] in ("done", "error"):
+                    break
+                await asyncio.sleep(0.1)
+
+            assert status_data["status"] == "done"
+            # preview_url key must be present (may be None if previews failed, but key exists)
+            assert "preview_url" in status_data

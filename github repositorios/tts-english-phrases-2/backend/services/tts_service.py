@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import random
+from typing import AsyncGenerator
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
@@ -51,6 +52,34 @@ async def generate_audio_for_phrase(phrase: str, voice_id: str, speed: float = 1
             logger.error("TTS service error: status=%s body=%s", response.status_code, response.text[:300])
         response.raise_for_status()
         return response.content
+
+
+async def generate_audio_streaming(
+    phrases: list[str],
+    language: str = "English",
+) -> AsyncGenerator[tuple[int, int, tuple[bytes, bytes]], None]:
+    """Yields (index, total, (normal_bytes, slow_bytes)) as each phrase completes.
+
+    Completion order may differ from input order (as_completed semantics).
+    Keeps the same semaphore(4) concurrency as generate_all_audio.
+    Existing generate_all_audio is unchanged.
+    """
+    voice_pool = VOICE_POOLS.get(language, VOICE_POOLS["English"])
+    total = len(phrases)
+    sem = asyncio.Semaphore(4)
+
+    async def _bounded(i: int, phrase: str) -> tuple[int, tuple[bytes, bytes]]:
+        voice = random.choice(voice_pool)
+        async with sem:
+            normal = await generate_audio_for_phrase(phrase, voice, speed=1.0)
+        async with sem:
+            slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED)
+        return i, (normal, slow)
+
+    tasks = [asyncio.create_task(_bounded(i, p)) for i, p in enumerate(phrases)]
+    for fut in asyncio.as_completed(tasks):
+        i, chunk = await fut
+        yield i, total, chunk
 
 
 async def generate_all_audio(phrases: list[str], language: str = "English") -> list[tuple[bytes, bytes]]:
