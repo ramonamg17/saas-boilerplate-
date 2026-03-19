@@ -174,8 +174,8 @@ async def run_session_generation(
                     try:
                         ordered = [chunks_by_index[j] for j in sorted(chunks_by_index)]
                         preview_bytes = assemble_session(ordered, target_ms=duration_minutes * 60 * 1000)
-                        version_key = f"sessions/{session_id}_v{next_cp + 1}.mp3"
-                        current_preview_url = await upload_session(version_key, preview_bytes)
+                        preview_id = f"{session_id}_v{next_cp + 1}"
+                        current_preview_url = await upload_session(preview_id, preview_bytes)
                         next_cp += 1
                         await update_status(
                             session_id, "generating_audio", progress,

@@ -72,7 +72,6 @@ async def generate_audio_streaming(
         voice = random.choice(voice_pool)
         async with sem:
             normal = await generate_audio_for_phrase(phrase, voice, speed=1.0)
-        async with sem:
             slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED)
         return i, (normal, slow)
 
