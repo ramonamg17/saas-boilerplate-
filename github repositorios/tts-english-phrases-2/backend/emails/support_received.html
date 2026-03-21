@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>We received your message — {{APP_NAME}}</title>
+</head>
+<body style="font-family:sans-serif;max-width:480px;margin:40px auto;color:#111;">
+  <h2>We got your message, {{USER_NAME}}!</h2>
+  <p>Thanks for reaching out to {{APP_NAME}} support. We've received your message and will get back to you as soon as possible.</p>
+
+  <p><strong>Your message:</strong></p>
+  <blockquote style="border-left:3px solid #ddd;padding-left:16px;color:#555;margin:16px 0;">
+    {{USER_MESSAGE}}
+  </blockquote>
+
+  <p>We typically respond within 1 business day. In the meantime, you can reach us at
+     <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>.</p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
+  <p style="color:#999;font-size:12px;">
+    {{APP_NAME}} &bull; <a href="{{FRONTEND_URL}}">{{FRONTEND_URL}}</a>
+  </p>
+</body>
+</html>

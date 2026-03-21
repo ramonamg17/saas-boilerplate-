@@ -538,6 +538,13 @@
     // ─── Config ───────────────────────────────────────────────────────────────
     const API_URL = 'http://localhost:8000';
 
+    // ─── Guest ID (persisted across sessions for rate limiting) ──────────────
+    let guestId = localStorage.getItem('guestId');
+    if (!guestId) {
+      guestId = crypto.randomUUID();
+      localStorage.setItem('guestId', guestId);
+    }
+
     // ─── Step messages ────────────────────────────────────────────────────────
     const STEP_MESSAGES = {
       queued:             ["Getting things ready…", "Warming up…"],
@@ -607,7 +614,7 @@
       try {
         const res = await fetch(`${API_URL}/interpret-topic`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Guest-ID': guestId },
           body: JSON.stringify({ language, topic }),
         });
 
@@ -644,7 +651,7 @@
       try {
         const res = await fetch(`${API_URL}/interpret-topic`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Guest-ID': guestId },
           body: JSON.stringify({
             language: formData.language,
             topic: formData.topic,
@@ -684,7 +691,7 @@
       try {
         const res = await fetch(`${API_URL}/generate-session`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Guest-ID': guestId },
           body: JSON.stringify(formData),
         });
 

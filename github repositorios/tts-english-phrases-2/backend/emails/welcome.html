@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome to {{APP_NAME}}</title>
+</head>
+<body style="font-family:sans-serif;max-width:480px;margin:40px auto;color:#111;">
+  <h2>Welcome to {{APP_NAME}}, {{USER_NAME}}!</h2>
+  <p>We're glad you're here. Your account is set up and ready to go.</p>
+
+  <p style="text-align:center;margin:32px 0;">
+    <a href="{{FRONTEND_URL}}/dashboard"
+       style="background:#000;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">
+      Go to Dashboard
+    </a>
+  </p>
+
+  <p>If you have any questions, reply to this email or contact us at
+     <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>.</p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
+  <p style="color:#999;font-size:12px;">
+    {{APP_NAME}} &bull; <a href="{{FRONTEND_URL}}/legal/privacy">Privacy</a> &bull;
+    <a href="{{FRONTEND_URL}}/legal/terms">Terms</a>
+  </p>
+</body>
+</html>

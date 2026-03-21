@@ -55,6 +55,21 @@ async def cleanup_expired_sessions(sessions: dict) -> None:
 
     logger.info(f"Cleanup complete: deleted {deleted} expired sessions")
 
+    # Delete expired TTS session records from DB (30-day retention)
+    try:
+        from database import AsyncSessionLocal
+        from models.session_model import TtsSession
+        from sqlalchemy import delete as sa_delete
+
+        async with AsyncSessionLocal() as db:
+            await db.execute(
+                sa_delete(TtsSession).where(TtsSession.expires_at < now)
+            )
+            await db.commit()
+            logger.info("DB cleanup: deleted expired tts_sessions records")
+    except Exception as e:
+        logger.error(f"DB cleanup failed: {e}")
+
 
 def start_cleanup_scheduler(sessions: dict) -> AsyncIOScheduler:
     global _scheduler

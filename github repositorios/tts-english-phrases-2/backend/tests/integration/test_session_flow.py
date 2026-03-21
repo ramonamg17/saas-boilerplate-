@@ -21,7 +21,36 @@ from pydub import AudioSegment
 
 with unittest.mock.patch("services.cleanup_service.start_cleanup_scheduler"):
     with unittest.mock.patch("services.cleanup_service.stop_cleanup_scheduler"):
-        from main import app
+        with unittest.mock.patch("main.create_tables", new=unittest.mock.AsyncMock()):
+            from main import app
+
+# ── Override FastAPI dependencies for all tests in this module ────────────────
+# FastAPI's dependency injection requires overriding via app.dependency_overrides,
+# not by patching the function in main's namespace.
+
+from database import get_db
+from middleware.auth_guard import optional_user
+
+
+async def _mock_get_db():
+    """Yield a no-op async DB mock."""
+    mock = AsyncMock()
+    mock.execute = AsyncMock()
+    mock.add = MagicMock()
+    mock.flush = AsyncMock()
+    mock.commit = AsyncMock()
+    mock.rollback = AsyncMock()
+    mock.close = AsyncMock()
+    yield mock
+
+
+async def _mock_optional_user():
+    """Always return None (unauthenticated guest)."""
+    return None
+
+
+app.dependency_overrides[get_db] = _mock_get_db
+app.dependency_overrides[optional_user] = _mock_optional_user
 
 
 # ── Shared mock helpers ───────────────────────────────────────────────────────
@@ -110,7 +139,32 @@ def _all_patches():
         # Scheduler — suppress real APScheduler startup/shutdown
         patch("main.start_cleanup_scheduler"),
         patch("main.stop_cleanup_scheduler"),
+        # DB — suppress real table creation and terminal-state DB writes
+        patch("main.create_tables", new=AsyncMock()),
+        patch("main.check_generation_limits", new=AsyncMock()),
+        # Suppress terminal DB persistence in update_status
+        patch("main.AsyncSessionLocal", new=_MockSessionLocalFactory()),
     ]
+
+
+class _MockSessionLocalFactory:
+    """AsyncSessionLocal drop-in that returns a no-op context manager."""
+
+    def __call__(self):
+        return _MockSessionCtx()
+
+
+class _MockSessionCtx:
+    async def __aenter__(self):
+        mock = AsyncMock()
+        mock.execute = AsyncMock(
+            return_value=AsyncMock(scalar_one_or_none=MagicMock(return_value=None))
+        )
+        mock.commit = AsyncMock()
+        return mock
+
+    async def __aexit__(self, *args):
+        pass
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
