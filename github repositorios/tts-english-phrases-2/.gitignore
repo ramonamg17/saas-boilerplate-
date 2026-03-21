@@ -13,3 +13,6 @@ backend/timing_data.json
 # Local tooling
 .playwright-mcp/
 .claude/
+
+# Smoke test artifacts
+*.png
