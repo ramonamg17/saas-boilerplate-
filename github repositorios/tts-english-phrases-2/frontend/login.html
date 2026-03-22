@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrar – LinguaFlow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --border: #2e2e40;
+      --accent: #6c63ff;
+      --accent-hover: #7d75ff;
+      --text: #e8e8f0;
+      --text-muted: #8888a8;
+      --success: #4caf88;
+      --error: #ef5350;
+      --radius: 12px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header h1 a {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 6px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .card .subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    input[type="email"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: var(--font);
+      margin-bottom: 16px;
+    }
+
+    input[type="email"]:focus { border-color: var(--accent); }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: var(--font);
+    }
+
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .state { display: none; }
+    .state.active { display: block; }
+
+    .check-icon {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .success-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .success-body {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .error-msg {
+      background: rgba(239, 83, 80, 0.1);
+      border: 1px solid var(--error);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.875rem;
+      color: var(--error);
+      margin-bottom: 16px;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .back-link:hover { color: var(--text); }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1><a href="index.html">LinguaFlow</a></h1>
+    <p>Acesse sua conta para ver seu histórico de gravações</p>
+  </header>
+
+  <div class="card">
+
+    <!-- State: verifying token from URL -->
+    <div class="state" id="state-verifying">
+      <div class="check-icon">⏳</div>
+      <div class="success-title">Verificando link…</div>
+      <div class="success-body">Aguarde um instante.</div>
+    </div>
+
+    <!-- State: email form -->
+    <div class="state active" id="state-form">
+      <h2>Entrar</h2>
+      <p class="subtitle">Enviaremos um link mágico para o seu email.</p>
+      <div id="form-error" class="error-msg" style="display:none"></div>
+      <label for="email-input">Email</label>
+      <input type="email" id="email-input" placeholder="voce@exemplo.com" autocomplete="email" />
+      <button class="btn" id="btn-send">Enviar link de acesso</button>
+    </div>
+
+    <!-- State: email sent -->
+    <div class="state" id="state-sent">
+      <div class="check-icon">📬</div>
+      <div class="success-title">Verifique seu email</div>
+      <div class="success-body">
+        Enviamos um link de acesso para <strong id="sent-email"></strong>.<br><br>
+        Clique no link do email para entrar. O link expira em 15 minutos.
+      </div>
+    </div>
+
+    <!-- State: token invalid -->
+    <div class="state" id="state-error">
+      <div class="check-icon">❌</div>
+      <div class="success-title">Link inválido ou expirado</div>
+      <div class="success-body">Solicite um novo link de acesso.</div>
+      <a href="login.html" class="btn" style="text-align:center;text-decoration:none;margin-top:20px;display:block">
+        Tentar novamente
+      </a>
+    </div>
+
+  </div>
+
+  <a href="index.html" class="back-link">← Voltar ao início</a>
+
+  <script>
+    const API_URL = 'http://localhost:8000';
+
+    function showState(id) {
+      document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ── Check for token in URL hash ──────────────────────────────────────────
+    const hash = location.hash.slice(1); // remove leading #
+    const params = new URLSearchParams(hash);
+    const token = params.get('token');
+
+    if (token) {
+      showState('state-verifying');
+      history.replaceState(null, '', location.pathname); // clean URL
+
+      (async () => {
+        try {
+          const res = await fetch(`${API_URL}/api/auth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+
+          if (!res.ok) { showState('state-error'); return; }
+
+          const data = await res.json();
+          localStorage.setItem('authToken', data.access_token);
+
+          // Migrate any existing guest sessions to the new account
+          const guestId = localStorage.getItem('guestId');
+          if (guestId) {
+            try {
+              await fetch(`${API_URL}/api/auth/guest/migrate`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${data.access_token}`,
+                },
+                body: JSON.stringify({ guest_session_id: guestId }),
+              });
+            } catch (_) { /* migration failure is non-fatal */ }
+          }
+
+          location.href = 'history.html';
+        } catch (_) {
+          showState('state-error');
+        }
+      })();
+    }
+
+    // ── Magic link form ───────────────────────────────────────────────────────
+    const btnSend = document.getElementById('btn-send');
+    const emailInput = document.getElementById('email-input');
+    const formError = document.getElementById('form-error');
+
+    btnSend.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      if (!email) { showFormError('Informe um email válido.'); return; }
+
+      btnSend.disabled = true;
+      btnSend.innerHTML = '<span class="spinner"></span>Enviando…';
+      formError.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_URL}/api/auth/magic-link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showFormError(err.detail || 'Erro ao enviar. Tente novamente.');
+          btnSend.disabled = false;
+          btnSend.textContent = 'Enviar link de acesso';
+          return;
+        }
+
+        document.getElementById('sent-email').textContent = email;
+        showState('state-sent');
+      } catch (_) {
+        showFormError('Erro de conexão. Verifique o servidor.');
+        btnSend.disabled = false;
+        btnSend.textContent = 'Enviar link de acesso';
+      }
+    });
+
+    emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') btnSend.click(); });
+
+    function showFormError(msg) {
+      formError.textContent = msg;
+      formError.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

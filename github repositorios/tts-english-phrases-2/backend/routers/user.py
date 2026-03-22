@@ -4,10 +4,12 @@ routers/user.py — User settings, account management, and contact.
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from middleware.auth_guard import get_current_user
+from models.session_model import TtsSession
 from models.user import User
 from plans import all_plans
 
@@ -89,6 +91,33 @@ async def delete_account(
     await db.delete(user)
     await db.flush()
     return {"message": "Account deleted"}
+
+
+@router.get("/sessions")
+async def get_sessions(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all completed sessions for the authenticated user, newest first."""
+    result = await db.execute(
+        select(TtsSession)
+        .where(TtsSession.user_id == user.id, TtsSession.status == "done")
+        .order_by(TtsSession.created_at.desc())
+    )
+    sessions = result.scalars().all()
+    return {
+        "sessions": [
+            {
+                "id": s.id,
+                "topic": s.topic,
+                "language": s.language,
+                "duration_minutes": s.duration_minutes,
+                "audio_url": s.audio_url,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+            for s in sessions
+        ]
+    }
 
 
 @router.get("/plans")

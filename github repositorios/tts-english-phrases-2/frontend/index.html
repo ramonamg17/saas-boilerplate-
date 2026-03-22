@@ -397,6 +397,29 @@
 
     /* Hidden audio element */
     audio { display: none; }
+
+    /* ── Auth bar ── */
+    .auth-bar {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+    .auth-bar a, .auth-bar button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: var(--font);
+      text-decoration: none;
+      padding: 0;
+    }
+    .auth-bar a:hover, .auth-bar button:hover { color: var(--text); }
+    .auth-bar .separator { color: var(--border); }
   </style>
 </head>
 <body>
@@ -405,6 +428,8 @@
     <h1>LinguaFlow</h1>
     <p>Comprehensible input audio sessions for language learners</p>
   </header>
+
+  <div class="auth-bar" id="auth-bar"></div>
 
   <!-- ═══════════════════════════════════════════
        View 1 – Form
@@ -544,6 +569,28 @@
       guestId = crypto.randomUUID();
       localStorage.setItem('guestId', guestId);
     }
+
+    // ─── Auth bar ─────────────────────────────────────────────────────────────
+    (function renderAuthBar() {
+      const token = localStorage.getItem('authToken');
+      const bar = document.getElementById('auth-bar');
+      if (!bar) return;
+      if (token) {
+        let email = '';
+        try { email = JSON.parse(atob(token.split('.')[1])).email || ''; } catch (_) {}
+        bar.innerHTML =
+          `<a href="history.html">Histórico</a>` +
+          `<span class="separator">|</span>` +
+          (email ? `<span style="color:var(--text-muted)">${email}</span><span class="separator">|</span>` : '') +
+          `<button id="btn-logout">Sair</button>`;
+        document.getElementById('btn-logout').addEventListener('click', () => {
+          localStorage.removeItem('authToken');
+          location.reload();
+        });
+      } else {
+        bar.innerHTML = `<a href="login.html">Entrar</a>`;
+      }
+    })();
 
     // ─── Step messages ────────────────────────────────────────────────────────
     const STEP_MESSAGES = {

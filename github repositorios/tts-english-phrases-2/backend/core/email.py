@@ -38,7 +38,7 @@ async def send_email(to: str, subject: str, html: str) -> None:
 
 
 async def send_magic_link(email: str, token: str) -> None:
-    link = f"{settings.FRONTEND_URL}/pages/auth/magic-link.html#token={token}"
+    link = f"{settings.FRONTEND_URL}/login.html#token={token}"
     html = _load_template("magic_link.html", {
         "APP_NAME": settings.APP_NAME,
         "SUPPORT_EMAIL": settings.SUPPORT_EMAIL,
