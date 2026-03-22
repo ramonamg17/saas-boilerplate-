@@ -245,7 +245,7 @@
 
     function logout() {
       localStorage.removeItem('authToken');
-      location.href = 'index.html';
+      location.href = '/';
     }
 
     document.getElementById('btn-logout').addEventListener('click', logout);

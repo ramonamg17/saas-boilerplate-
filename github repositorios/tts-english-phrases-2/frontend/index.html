@@ -585,12 +585,20 @@
           `<button id="btn-logout">Sign out</button>`;
         document.getElementById('btn-logout').addEventListener('click', () => {
           localStorage.removeItem('authToken');
-          location.reload();
+          location.href = '/';
         });
       } else {
         bar.innerHTML = `<a href="login.html">Sign in</a>`;
       }
     })();
+
+    // ─── Auth headers helper ──────────────────────────────────────────────────
+    function authHeaders() {
+      const h = { 'Content-Type': 'application/json', 'X-Guest-ID': guestId };
+      const token = localStorage.getItem('authToken');
+      if (token) h['Authorization'] = `Bearer ${token}`;
+      return h;
+    }
 
     // ─── Step messages ────────────────────────────────────────────────────────
     const STEP_MESSAGES = {
@@ -661,7 +669,7 @@
       try {
         const res = await fetch(`${API_URL}/interpret-topic`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Guest-ID': guestId },
+          headers: authHeaders(),
           body: JSON.stringify({ language, topic }),
         });
 
@@ -698,7 +706,7 @@
       try {
         const res = await fetch(`${API_URL}/interpret-topic`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Guest-ID': guestId },
+          headers: authHeaders(),
           body: JSON.stringify({
             language: formData.language,
             topic: formData.topic,
@@ -738,7 +746,7 @@
       try {
         const res = await fetch(`${API_URL}/generate-session`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Guest-ID': guestId },
+          headers: authHeaders(),
           body: JSON.stringify(formData),
         });
 

@@ -80,6 +80,7 @@ if frontend_dir.exists():
 
 
 @app.get("/")
+@app.get("/index.html")
 async def serve_frontend():
     index = frontend_dir / "index.html"
     if index.exists():
