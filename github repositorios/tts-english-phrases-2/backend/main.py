@@ -80,6 +80,14 @@ if frontend_dir.exists():
 
 
 @app.get("/")
+async def serve_landing():
+    landing = frontend_dir / "landing.html"
+    if landing.exists():
+        return FileResponse(str(landing))
+    return {"message": "Language Learning Audio API"}
+
+
+@app.get("/app")
 @app.get("/index.html")
 async def serve_frontend():
     index = frontend_dir / "index.html"
