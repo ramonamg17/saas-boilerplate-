@@ -2,9 +2,12 @@
 routers/auth.py — Authentication endpoints.
 """
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +69,11 @@ async def send_magic_link_endpoint(
 ):
     """Send a magic link to the provided email address."""
     raw_token = await create_magic_link_token(body.email, db)
-    await send_magic_link(body.email, raw_token)
+    await db.flush()  # persist token before attempting email
+    try:
+        await send_magic_link(body.email, raw_token)
+    except Exception as exc:
+        logger.warning("Failed to send magic link email to %s: %s", body.email, exc)
     return {"message": "Magic link sent. Check your email."}
 
 

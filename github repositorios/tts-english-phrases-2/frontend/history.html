@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Histórico – LinguaFlow</title>
+  <title>History – LinguaFlow</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -221,25 +221,25 @@
     <a class="logo" href="index.html">LinguaFlow</a>
     <div class="nav-right">
       <span class="user-email" id="user-email"></span>
-      <button id="btn-logout">Sair</button>
+      <button id="btn-logout">Sign out</button>
     </div>
   </nav>
 
-  <h2>Suas gravações</h2>
+  <h2>Your recordings</h2>
 
   <div id="main-content" class="session-list">
     <div class="spinner-wrap"><div class="spinner"></div></div>
   </div>
 
   <script>
-    const API_URL = 'http://localhost:8000';
+    const API_URL = window.location.origin;
 
     function relativeTime(isoString) {
       const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
-      if (diff < 60) return 'agora mesmo';
-      if (diff < 3600) return `há ${Math.floor(diff / 60)} minuto${Math.floor(diff / 60) > 1 ? 's' : ''}`;
-      if (diff < 86400) return `há ${Math.floor(diff / 3600)} hora${Math.floor(diff / 3600) > 1 ? 's' : ''}`;
-      if (diff < 604800) return `há ${Math.floor(diff / 86400)} dia${Math.floor(diff / 86400) > 1 ? 's' : ''}`;
+      if (diff < 60) return 'just now';
+      if (diff < 3600) { const m = Math.floor(diff / 60); return `${m} minute${m > 1 ? 's' : ''} ago`; }
+      if (diff < 86400) { const h = Math.floor(diff / 3600); return `${h} hour${h > 1 ? 's' : ''} ago`; }
+      if (diff < 604800) { const d = Math.floor(diff / 86400); return `${d} day${d > 1 ? 's' : ''} ago`; }
       return new Date(isoString).toLocaleDateString('pt-BR');
     }
 
@@ -258,7 +258,7 @@
         container.innerHTML = `
           <div class="empty-state">
             <div class="icon">🔒</div>
-            <p>Faça <a href="login.html">login</a> para ver seu histórico de gravações.</p>
+            <p><a href="login.html">Sign in</a> to view your recording history.</p>
           </div>`;
         return;
       }
@@ -281,7 +281,7 @@
           headers: { 'Authorization': `Bearer ${token}` },
         });
       } catch (_) {
-        container.innerHTML = `<div class="error-msg">Erro de conexão. Verifique o servidor.</div>`;
+        container.innerHTML = `<div class="error-msg">Connection error. Please check the server.</div>`;
         return;
       }
 
@@ -290,13 +290,13 @@
         container.innerHTML = `
           <div class="empty-state">
             <div class="icon">⏰</div>
-            <p>Sessão expirada. <a href="login.html">Faça login novamente</a>.</p>
+            <p>Session expired. <a href="login.html">Sign in again</a>.</p>
           </div>`;
         return;
       }
 
       if (!res.ok) {
-        container.innerHTML = `<div class="error-msg">Erro ao carregar gravações.</div>`;
+        container.innerHTML = `<div class="error-msg">Failed to load recordings.</div>`;
         return;
       }
 
@@ -307,8 +307,8 @@
         container.innerHTML = `
           <div class="empty-state">
             <div class="icon">🎙️</div>
-            <p>Você ainda não tem nenhuma gravação.<br>
-            <a href="index.html" class="new-session-btn" style="display:inline-block;margin-top:16px">Criar primeira sessão</a></p>
+            <p>You don't have any recordings yet.<br>
+            <a href="index.html" class="new-session-btn" style="display:inline-block;margin-top:16px">Create your first session</a></p>
           </div>`;
         return;
       }

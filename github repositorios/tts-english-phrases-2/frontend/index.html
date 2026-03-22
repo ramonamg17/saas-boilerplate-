@@ -561,7 +561,7 @@
 
   <script>
     // ─── Config ───────────────────────────────────────────────────────────────
-    const API_URL = 'http://localhost:8000';
+    const API_URL = window.location.origin;
 
     // ─── Guest ID (persisted across sessions for rate limiting) ──────────────
     let guestId = localStorage.getItem('guestId');
@@ -579,16 +579,16 @@
         let email = '';
         try { email = JSON.parse(atob(token.split('.')[1])).email || ''; } catch (_) {}
         bar.innerHTML =
-          `<a href="history.html">Histórico</a>` +
+          `<a href="history.html">History</a>` +
           `<span class="separator">|</span>` +
           (email ? `<span style="color:var(--text-muted)">${email}</span><span class="separator">|</span>` : '') +
-          `<button id="btn-logout">Sair</button>`;
+          `<button id="btn-logout">Sign out</button>`;
         document.getElementById('btn-logout').addEventListener('click', () => {
           localStorage.removeItem('authToken');
           location.reload();
         });
       } else {
-        bar.innerHTML = `<a href="login.html">Entrar</a>`;
+        bar.innerHTML = `<a href="login.html">Sign in</a>`;
       }
     })();
 

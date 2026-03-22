@@ -87,6 +87,16 @@ async def serve_frontend():
     return {"message": "Language Learning Audio API"}
 
 
+@app.get("/login.html")
+async def serve_login():
+    return FileResponse(str(frontend_dir / "login.html"))
+
+
+@app.get("/history.html")
+async def serve_history():
+    return FileResponse(str(frontend_dir / "history.html"))
+
+
 # ── Request/response models ───────────────────────────────────────────
 
 class InterpretTopicRequest(BaseModel):
