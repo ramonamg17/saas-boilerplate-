@@ -15,6 +15,8 @@
       --border: #2e2e40;
       --accent: #6c63ff;
       --accent-hover: #7d75ff;
+      --accent-light: #9590ff;   /* text on dark bg — 6.6:1 contrast */
+      --accent-dark: #5c56e0;    /* button bg — 5.4:1 with white text */
       --accent-dim: rgba(108, 99, 255, 0.15);
       --text: #e8e8f0;
       --text-muted: #8888a8;
@@ -81,7 +83,7 @@
 
     .btn-nav {
       padding: 8px 18px;
-      background: var(--accent);
+      background: var(--accent-dark);
       border: none;
       border-radius: 8px;
       color: #fff;
@@ -94,7 +96,74 @@
       display: inline-block;
     }
 
-    .btn-nav:hover { background: var(--accent-hover); }
+    .btn-nav:hover { background: var(--accent); }
+
+    /* ── Hamburger button (mobile only) ─────────────────────────────────── */
+    .nav-toggle {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      width: 36px;
+      height: 36px;
+    }
+
+    .nav-toggle span {
+      display: block;
+      height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: transform 0.25s, opacity 0.25s;
+    }
+
+    .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-toggle.open span:nth-child(2) { opacity: 0; }
+    .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    @media (max-width: 680px) {
+      .nav-toggle { display: flex; }
+
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        position: absolute;
+        top: 60px;
+        left: 0;
+        right: 0;
+        background: rgba(15, 15, 19, 0.97);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 24px 20px;
+        z-index: 99;
+      }
+
+      .nav-links.open { display: flex; }
+
+      .nav-links a {
+        padding: 14px 0;
+        font-size: 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .nav-links a:last-child { border-bottom: none; }
+
+      .btn-nav {
+        margin-top: 12px;
+        padding: 13px;
+        text-align: center;
+        border-radius: 10px;
+        font-size: 1rem;
+        background: var(--accent-dark);
+      }
+    }
 
     /* ── Hero ───────────────────────────────────────────────────────────── */
     .hero {
@@ -171,7 +240,7 @@
 
     .btn-primary {
       padding: 14px 28px;
-      background: var(--accent);
+      background: var(--accent-dark);
       border: none;
       border-radius: 10px;
       color: #fff;
@@ -184,7 +253,7 @@
       display: inline-block;
     }
 
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
 
     .btn-ghost {
       padding: 14px 24px;
@@ -215,7 +284,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: var(--accent);
+      color: var(--accent-light);
       margin-bottom: 12px;
     }
 
@@ -273,7 +342,7 @@
       border-radius: 10px;
       font-size: 0.85rem;
       font-weight: 700;
-      color: var(--accent);
+      color: var(--accent-light);
       margin-bottom: 18px;
     }
 
@@ -390,7 +459,7 @@
       border-radius: 999px;
       font-size: 0.72rem;
       font-weight: 600;
-      color: var(--accent);
+      color: var(--accent-light);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 16px;
@@ -451,7 +520,7 @@
       display: block;
       width: 100%;
       padding: 13px;
-      background: var(--accent);
+      background: var(--accent-dark);
       border: none;
       border-radius: 8px;
       color: #fff;
@@ -464,7 +533,7 @@
       text-align: center;
     }
 
-    .btn-plan:hover { background: var(--accent-hover); }
+    .btn-plan:hover { background: var(--accent); }
 
     .btn-plan.disabled {
       background: var(--surface2);
@@ -575,7 +644,10 @@
   <nav class="nav">
     <div class="nav-inner">
       <a class="nav-logo" href="/">Lingua<span>Flow</span></a>
-      <div class="nav-links">
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
         <a href="#how">How it works</a>
         <a href="#pricing">Pricing</a>
         <a href="/login.html">Sign in</a>
@@ -583,6 +655,25 @@
       </div>
     </div>
   </nav>
+
+  <script>
+    (function () {
+      const toggle = document.getElementById('nav-toggle');
+      const links  = document.getElementById('nav-links');
+      toggle.addEventListener('click', function () {
+        const open = links.classList.toggle('open');
+        toggle.classList.toggle('open', open);
+        toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      });
+      // Close menu when a link is clicked
+      links.querySelectorAll('a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          links.classList.remove('open');
+          toggle.classList.remove('open');
+        });
+      });
+    })();
+  </script>
 
   <!-- ── Hero ── -->
   <section class="hero">
