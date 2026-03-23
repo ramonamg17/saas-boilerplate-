@@ -243,6 +243,15 @@
       return new Date(isoString).toLocaleDateString('pt-BR');
     }
 
+    function markPlayed(sessionId) {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      fetch(`${API_URL}/api/user/sessions/${sessionId}/played`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+    }
+
     function logout() {
       localStorage.removeItem('authToken');
       location.href = '/';
@@ -321,7 +330,7 @@
           </div>
           <span class="session-time">${relativeTime(s.created_at)}</span>
           ${s.audio_url
-            ? `<a class="play-btn" href="${escapeHtml(s.audio_url)}" target="_blank" title="Ouvir">▶</a>`
+            ? `<a class="play-btn" href="${escapeHtml(s.audio_url)}" target="_blank" title="Ouvir" onclick="markPlayed('${s.id}')">▶</a>`
             : ''}
         </div>
       `).join('');

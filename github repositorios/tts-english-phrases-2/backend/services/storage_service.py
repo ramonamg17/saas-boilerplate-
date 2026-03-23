@@ -40,6 +40,14 @@ async def upload_session(session_id: str, audio_bytes: bytes) -> str:
     return signed["signedURL"]
 
 
+def get_signed_url(session_id: str, ttl: int = 86400) -> str:
+    client = _get_client()
+    bucket = _get_bucket()
+    path = f"sessions/{session_id}.mp3"
+    signed = client.storage.from_(bucket).create_signed_url(path, ttl)
+    return signed["signedURL"]
+
+
 def list_session_files() -> list[dict]:
     client = _get_client()
     bucket = _get_bucket()

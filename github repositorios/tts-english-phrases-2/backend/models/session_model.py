@@ -39,3 +39,4 @@ class TtsSession(Base):
     )
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    last_played_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

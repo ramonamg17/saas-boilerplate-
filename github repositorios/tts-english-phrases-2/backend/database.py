@@ -48,3 +48,11 @@ async def create_tables():
         from models import user as _  # noqa: F401 — registers User models
         from models import session_model as _2  # noqa: F401 — registers TtsSession
         await conn.run_sync(Base.metadata.create_all)
+        # Add last_played_at if it doesn't exist (migration for existing DBs)
+        from sqlalchemy import text
+        try:
+            await conn.execute(text(
+                "ALTER TABLE tts_sessions ADD COLUMN last_played_at TIMESTAMPTZ"
+            ))
+        except Exception:
+            pass  # Column already exists

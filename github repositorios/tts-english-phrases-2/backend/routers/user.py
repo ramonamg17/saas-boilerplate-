@@ -2,7 +2,9 @@
 routers/user.py — User settings, account management, and contact.
 """
 
-from fastapi import APIRouter, Depends
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -99,25 +101,56 @@ async def get_sessions(
     db: AsyncSession = Depends(get_db),
 ):
     """Return all completed sessions for the authenticated user, newest first."""
+    from services.storage_service import get_signed_url
+
     result = await db.execute(
         select(TtsSession)
         .where(TtsSession.user_id == user.id, TtsSession.status == "done")
         .order_by(TtsSession.created_at.desc())
     )
     sessions = result.scalars().all()
-    return {
-        "sessions": [
-            {
-                "id": s.id,
-                "topic": s.topic,
-                "language": s.language,
-                "duration_minutes": s.duration_minutes,
-                "audio_url": s.audio_url,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
-            }
-            for s in sessions
-        ]
-    }
+
+    items = []
+    for s in sessions:
+        audio_url = s.audio_url
+        if audio_url:
+            try:
+                audio_url = get_signed_url(s.id, ttl=86400)  # fresh 24h URL
+            except Exception:
+                pass  # keep stored URL as fallback
+        items.append({
+            "id": s.id,
+            "topic": s.topic,
+            "language": s.language,
+            "duration_minutes": s.duration_minutes,
+            "audio_url": audio_url,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
+    return {"sessions": items}
+
+
+@router.post("/sessions/{session_id}/played")
+async def mark_session_played(
+    session_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset the 30-day expiration timer for a session when it is played."""
+    result = await db.execute(
+        select(TtsSession).where(
+            TtsSession.id == session_id,
+            TtsSession.user_id == user.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    now = datetime.now(timezone.utc)
+    session.last_played_at = now
+    session.expires_at = now + timedelta(days=30)
+    await db.flush()
+    return {"ok": True}
 
 
 @router.get("/plans")
