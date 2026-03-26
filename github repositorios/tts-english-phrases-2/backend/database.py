@@ -2,6 +2,8 @@
 database.py — Async SQLAlchemy engine + session dependency.
 """
 
+import uuid
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -16,6 +18,10 @@ engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
     future=True,
+    connect_args={
+        "statement_cache_size": 0,
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4().hex}__",
+    },
 )
 
 AsyncSessionLocal = async_sessionmaker(
