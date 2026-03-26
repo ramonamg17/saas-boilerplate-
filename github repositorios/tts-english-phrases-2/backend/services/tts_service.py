@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import random
 from typing import AsyncGenerator
@@ -21,7 +22,7 @@ VOICE_POOLS = {
     "Russian":             ["rf_irina", "rm_ilya"],
 }
 
-TTS_SERVICE_URL = settings.TTS_SERVICE_URL
+RUNPOD_ENDPOINT_ID = settings.RUNPOD_ENDPOINT_ID
 SLOW_SPEED = 0.7
 
 
@@ -37,22 +38,28 @@ def _is_retryable_error(exc: BaseException) -> bool:
     retry=retry_if_exception(_is_retryable_error),
 )
 async def generate_audio_for_phrase(phrase: str, voice_id: str, speed: float = 1.0) -> bytes:
-    url = f"{TTS_SERVICE_URL}/v1/audio/speech"
+    url = f"https://api.runpod.io/v2/{RUNPOD_ENDPOINT_ID}/runsync"
 
     payload = {
-        "model": "kokoro",
-        "input": phrase,
-        "voice": voice_id,
-        "speed": speed,
-        "response_format": "mp3",
+        "input": {
+            "model": "kokoro",
+            "input": phrase,
+            "voice": voice_id,
+            "speed": speed,
+        }
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(url, json=payload)
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"},
+        )
         if response.status_code != 200:
-            logger.error("TTS service error: status=%s body=%s", response.status_code, response.text[:300])
+            logger.error("RunPod TTS error: status=%s body=%s", response.status_code, response.text[:300])
         response.raise_for_status()
-        return response.content
+        data = response.json()
+        return base64.b64decode(data["output"]["audio_base64"])
 
 
 async def generate_audio_streaming(

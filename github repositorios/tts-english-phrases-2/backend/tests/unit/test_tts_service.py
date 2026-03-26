@@ -1,28 +1,41 @@
 """
 Unit tests for services/tts_service.py
-Kokoro TTS HTTP calls are mocked — no real API calls.
+RunPod Serverless API calls are mocked — no real API calls.
 """
+import base64
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from services.tts_service import (
     VOICE_POOLS,
-    TTS_SERVICE_URL,
+    RUNPOD_ENDPOINT_ID,
     generate_audio_for_phrase,
     generate_all_audio,
     generate_audio_streaming,
 )
-from tests.conftest import make_kokoro_response
 
 
-# ── TTS_SERVICE_URL ───────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────────
 
-def test_tts_service_url_reads_from_settings(monkeypatch):
+def make_runpod_response(audio: bytes = b"FAKE_MP3_AUDIO_DATA") -> MagicMock:
+    """Return a mock httpx response shaped like the RunPod /runsync reply."""
+    mock = MagicMock()
+    mock.status_code = 200
+    mock.raise_for_status = MagicMock()
+    mock.json.return_value = {
+        "output": {"audio_base64": base64.b64encode(audio).decode()}
+    }
+    return mock
+
+
+# ── RUNPOD_ENDPOINT_ID ────────────────────────────────────────────────────────
+
+def test_runpod_endpoint_id_reads_from_settings(monkeypatch):
     import importlib
     import services.tts_service as mod
-    monkeypatch.setattr("services.tts_service.settings.TTS_SERVICE_URL", "http://my-tts-server:9000")
+    monkeypatch.setattr("services.tts_service.settings.RUNPOD_ENDPOINT_ID", "ep-test-123")
     importlib.reload(mod)
-    assert mod.TTS_SERVICE_URL == "http://my-tts-server:9000"
+    assert mod.RUNPOD_ENDPOINT_ID == "ep-test-123"
     # restore
     importlib.reload(mod)
 
@@ -57,7 +70,7 @@ async def test_generate_audio_returns_bytes():
     mock_http = MagicMock()
     mock_http.__aenter__ = AsyncMock(return_value=mock_http)
     mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_kokoro_response(fake_audio))
+    mock_http.post = AsyncMock(return_value=make_runpod_response(fake_audio))
 
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
         result = await generate_audio_for_phrase("Hello world", "af_heart")
@@ -71,26 +84,26 @@ async def test_generate_audio_sends_phrase_text():
     mock_http = MagicMock()
     mock_http.__aenter__ = AsyncMock(return_value=mock_http)
     mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_kokoro_response())
+    mock_http.post = AsyncMock(return_value=make_runpod_response())
 
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
         await generate_audio_for_phrase(phrase, "af_heart")
 
     _, call_kwargs = mock_http.post.call_args
-    assert call_kwargs["json"]["input"] == phrase
+    assert call_kwargs["json"]["input"]["input"] == phrase
 
 
 async def test_generate_audio_sends_correct_model():
     mock_http = MagicMock()
     mock_http.__aenter__ = AsyncMock(return_value=mock_http)
     mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_kokoro_response())
+    mock_http.post = AsyncMock(return_value=make_runpod_response())
 
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
         await generate_audio_for_phrase("test phrase", "af_heart")
 
     _, call_kwargs = mock_http.post.call_args
-    assert call_kwargs["json"]["model"] == "kokoro"
+    assert call_kwargs["json"]["input"]["model"] == "kokoro"
 
 
 async def test_generate_audio_sends_voice_id():
@@ -99,39 +112,53 @@ async def test_generate_audio_sends_voice_id():
     mock_http = MagicMock()
     mock_http.__aenter__ = AsyncMock(return_value=mock_http)
     mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_kokoro_response())
+    mock_http.post = AsyncMock(return_value=make_runpod_response())
 
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
         await generate_audio_for_phrase("test", voice_id)
 
     _, call_kwargs = mock_http.post.call_args
-    assert call_kwargs["json"]["voice"] == voice_id
+    assert call_kwargs["json"]["input"]["voice"] == voice_id
 
 
 async def test_generate_audio_sends_speed_param():
     mock_http = MagicMock()
     mock_http.__aenter__ = AsyncMock(return_value=mock_http)
     mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_kokoro_response())
+    mock_http.post = AsyncMock(return_value=make_runpod_response())
 
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
         await generate_audio_for_phrase("test", "af_heart", speed=0.7)
 
     _, call_kwargs = mock_http.post.call_args
-    assert call_kwargs["json"]["speed"] == 0.7
+    assert call_kwargs["json"]["input"]["speed"] == 0.7
 
 
-async def test_generate_audio_calls_correct_endpoint():
+async def test_generate_audio_calls_runsync_endpoint():
     mock_http = MagicMock()
     mock_http.__aenter__ = AsyncMock(return_value=mock_http)
     mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_kokoro_response())
+    mock_http.post = AsyncMock(return_value=make_runpod_response())
 
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
         await generate_audio_for_phrase("test", "af_heart")
 
     url_arg = mock_http.post.call_args.args[0]
-    assert url_arg.endswith("/v1/audio/speech")
+    assert url_arg.endswith("/runsync")
+
+
+async def test_generate_audio_sends_authorization_header():
+    mock_http = MagicMock()
+    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+    mock_http.__aexit__ = AsyncMock(return_value=None)
+    mock_http.post = AsyncMock(return_value=make_runpod_response())
+
+    with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
+        await generate_audio_for_phrase("test", "af_heart")
+
+    _, call_kwargs = mock_http.post.call_args
+    assert "Authorization" in call_kwargs["headers"]
+    assert call_kwargs["headers"]["Authorization"].startswith("Bearer ")
 
 
 # ── generate_all_audio ────────────────────────────────────────────────────────
