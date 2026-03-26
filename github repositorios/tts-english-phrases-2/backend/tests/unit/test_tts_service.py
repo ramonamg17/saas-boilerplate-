@@ -17,10 +17,10 @@ from tests.conftest import make_kokoro_response
 
 # ── TTS_SERVICE_URL ───────────────────────────────────────────────────────────
 
-def test_tts_service_url_reads_from_env(monkeypatch):
-    monkeypatch.setenv("TTS_SERVICE_URL", "http://my-tts-server:9000")
+def test_tts_service_url_reads_from_settings(monkeypatch):
     import importlib
     import services.tts_service as mod
+    monkeypatch.setattr("services.tts_service.settings.TTS_SERVICE_URL", "http://my-tts-server:9000")
     importlib.reload(mod)
     assert mod.TTS_SERVICE_URL == "http://my-tts-server:9000"
     # restore

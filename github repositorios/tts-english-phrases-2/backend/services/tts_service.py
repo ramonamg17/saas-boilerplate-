@@ -1,11 +1,12 @@
 import asyncio
 import logging
-import os
 import random
 from typing import AsyncGenerator
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ VOICE_POOLS = {
     "Russian":             ["rf_irina", "rm_ilya"],
 }
 
-TTS_SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://localhost:8880")
+TTS_SERVICE_URL = settings.TTS_SERVICE_URL
 SLOW_SPEED = 0.7
 
 
