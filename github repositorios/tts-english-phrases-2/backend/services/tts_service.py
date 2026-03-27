@@ -38,7 +38,7 @@ def _is_retryable_error(exc: BaseException) -> bool:
     retry=retry_if_exception(_is_retryable_error),
 )
 async def generate_audio_for_phrase(phrase: str, voice_id: str, speed: float = 1.0) -> bytes:
-    url = f"https://api.runpod.io/v2/{RUNPOD_ENDPOINT_ID}/runsync"
+    url = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}/runsync"
 
     payload = {
         "input": {
