@@ -49,7 +49,7 @@ async def generate_audio_for_phrase(phrase: str, voice_id: str, speed: float = 1
         }
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=300.0) as client:
         response = await client.post(
             url,
             json=payload,
