@@ -33,7 +33,7 @@ def _ensure_server() -> None:
     }
 
     _server_proc = subprocess.Popen(
-        ["python", "-m", "uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8880"],
+        ["python3.11", "-m", "uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8880"],
         cwd="/root/kokoro-fastapi",
         env=env,
     )
