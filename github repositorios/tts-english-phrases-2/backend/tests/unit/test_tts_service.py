@@ -18,12 +18,13 @@ from services.tts_service import (
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def make_runpod_response(audio: bytes = b"FAKE_MP3_AUDIO_DATA") -> MagicMock:
-    """Return a mock httpx response shaped like the RunPod /runsync reply."""
+    """Return a mock httpx response shaped like the RunPod /runsync reply (fast path)."""
     mock = MagicMock()
     mock.status_code = 200
     mock.raise_for_status = MagicMock()
     mock.json.return_value = {
-        "output": {"audio_base64": base64.b64encode(audio).decode()}
+        "status": "COMPLETED",
+        "output": {"audio_base64": base64.b64encode(audio).decode()},
     }
     return mock
 

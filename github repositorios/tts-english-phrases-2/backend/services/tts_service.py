@@ -49,17 +49,35 @@ async def generate_audio_for_phrase(phrase: str, voice_id: str, speed: float = 1
         }
     }
 
+    url_status = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}/status"
+    headers = {"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"}
+
     async with httpx.AsyncClient(timeout=300.0) as client:
-        response = await client.post(
-            url,
-            json=payload,
-            headers={"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"},
-        )
+        response = await client.post(url, json=payload, headers=headers)
         if response.status_code != 200:
             logger.error("RunPod TTS error: status=%s body=%s", response.status_code, response.text[:300])
         response.raise_for_status()
         data = response.json()
-        return base64.b64decode(data["output"]["audio_base64"])
+
+        # Fast path: runsync returned the completed result directly
+        if data.get("status") == "COMPLETED":
+            return base64.b64decode(data["output"]["audio_base64"])
+
+        # Slow path: job is still running (cold start > ~90s) — poll until done
+        if data.get("status") == "IN_PROGRESS":
+            job_id = data["id"]
+            for _ in range(60):  # up to 5 min (60 × 5s)
+                await asyncio.sleep(5)
+                r = await client.get(f"{url_status}/{job_id}", headers=headers)
+                r.raise_for_status()
+                s = r.json()
+                if s.get("status") == "COMPLETED":
+                    return base64.b64decode(s["output"]["audio_base64"])
+                if s.get("status") == "FAILED":
+                    raise RuntimeError(f"RunPod job failed: {s.get('error', '')[:200]}")
+            raise RuntimeError(f"RunPod job did not complete within 5 minutes: {job_id}")
+
+        raise RuntimeError(f"Unexpected RunPod response: {data}")
 
 
 async def generate_audio_streaming(
