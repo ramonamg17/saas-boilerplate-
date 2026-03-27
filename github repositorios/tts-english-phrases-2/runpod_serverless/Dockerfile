@@ -12,7 +12,8 @@ RUN git clone https://github.com/remsky/kokoro-fastapi /root/kokoro-fastapi && \
 # Pre-download model weights into the expected path so cold starts skip HuggingFace download.
 # handler.py sets MODEL_DIR=src/models with cwd=/root/kokoro-fastapi,
 # so the resolved path is /root/kokoro-fastapi/src/models/v1_0.
-RUN python3 -c "\
+RUN pip install huggingface-hub --no-cache-dir && \
+    python3 -c "\
 import huggingface_hub; \
 huggingface_hub.snapshot_download(\
     'hexgrad/Kokoro-82M', \
