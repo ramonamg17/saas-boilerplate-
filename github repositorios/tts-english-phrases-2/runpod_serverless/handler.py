@@ -8,6 +8,7 @@ then proxies /v1/audio/speech requests and returns base64-encoded MP3 audio.
 import base64
 import os
 import subprocess
+import threading
 import time
 
 import requests
@@ -15,20 +16,24 @@ import runpod
 
 _server_ready = False
 _server_proc = None
+_server_lock = threading.Lock()
 
 
-def _ensure_server() -> None:
+def _start_server() -> None:
     global _server_ready, _server_proc
-
-    if _server_ready:
-        return
 
     env = {
         **os.environ,
         "USE_GPU": "true",
         "USE_ONNX": "false",
-        "PYTHONPATH": "/root/kokoro-fastapi:/root/kokoro-fastapi/api",
-        "MODEL_DIR": "src/models",
+        # Single PYTHONPATH entry — avoids import conflicts with dual-path setup
+        "PYTHONPATH": "/root/kokoro-fastapi",
+        # Absolute MODEL_DIR: os.path.join(api_dir, absolute_path) == absolute_path in Python,
+        # so this bypasses the api_dir prefix computed in paths.py.
+        # Models were downloaded to /root/kokoro-fastapi/src/models/v1_0/ during Docker build.
+        "MODEL_DIR": "/root/kokoro-fastapi/src/models",
+        # VOICES_DIR: relative to api_dir (/root/kokoro-fastapi/api), so resolves to
+        # /root/kokoro-fastapi/api/src/voices/v1_0 — exactly where git clone puts them.
         "VOICES_DIR": "src/voices/v1_0",
     }
 
@@ -38,8 +43,8 @@ def _ensure_server() -> None:
         env=env,
     )
 
-    # Wait up to 4 minutes for the model to load and server to be healthy
-    for _ in range(120):
+    # Wait up to 5 minutes for model load + warmup inference
+    for _ in range(150):
         try:
             if requests.get("http://localhost:8880/health", timeout=3).status_code == 200:
                 _server_ready = True
@@ -48,7 +53,16 @@ def _ensure_server() -> None:
             pass
         time.sleep(2)
 
-    raise RuntimeError("Kokoro server failed to become healthy within 4 minutes")
+    raise RuntimeError("Kokoro server failed to become healthy within 5 minutes")
+
+
+def _ensure_server() -> None:
+    global _server_ready
+    if _server_ready:
+        return
+    with _server_lock:
+        if not _server_ready:
+            _start_server()
 
 
 def handler(job: dict) -> dict:
@@ -69,5 +83,9 @@ def handler(job: dict) -> dict:
     response.raise_for_status()
     return {"audio_base64": base64.b64encode(response.content).decode()}
 
+
+# Pre-warm: start Kokoro server in background immediately on worker startup.
+# This way the model is already loaded when the first job arrives.
+threading.Thread(target=_ensure_server, daemon=True).start()
 
 runpod.serverless.start({"handler": handler})
