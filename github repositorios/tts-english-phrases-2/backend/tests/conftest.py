@@ -79,7 +79,6 @@ def make_kokoro_response(audio_bytes: bytes = b"FAKE_AUDIO") -> MagicMock:
 def api_keys(monkeypatch):
     """Set all required API keys in the environment."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
-    monkeypatch.setenv("TTS_SERVICE_URL", "http://localhost:8880")
     monkeypatch.setenv("SUPABASE_URL", "https://test.supabase.co")
     monkeypatch.setenv("SUPABASE_KEY", "test-supabase-key")
     monkeypatch.setenv("SUPABASE_BUCKET", "audio-sessions")

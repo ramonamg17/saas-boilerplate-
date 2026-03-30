@@ -52,7 +52,6 @@ class Settings(BaseSettings):
 
     # ── TTS App specific ──────────────────────────────────────────────
     OPENAI_API_KEY: str = ""
-    TTS_SERVICE_URL: str = "http://localhost:8880"
     RUNPOD_API_KEY: str = ""
     RUNPOD_ENDPOINT_ID: str = ""
     TTS_API_KEY: str = ""

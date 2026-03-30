@@ -100,6 +100,7 @@ async def generate_audio_streaming(
     async def _bounded(i: int, phrase: str) -> tuple[int, tuple[bytes, bytes]]:
         voice = random.choice(voice_pool)
         async with sem:
+            # Hold semaphore for both calls to keep each phrase's pair together
             normal = await generate_audio_for_phrase(phrase, voice, speed=1.0, lang=lang)
             slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED, lang=lang)
         return i, (normal, slow)
