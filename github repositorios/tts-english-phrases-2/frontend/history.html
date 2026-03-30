@@ -168,6 +168,22 @@
     }
     .delete-btn:hover { color: var(--error); background: rgba(239,83,80,0.1); }
 
+    .session-card.deleting {
+      filter: blur(2px);
+      opacity: 0.4;
+      pointer-events: none;
+      transition: filter 0.2s, opacity 0.2s;
+    }
+
+    .session-card.deleted {
+      opacity: 0;
+      max-height: 0;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      transition: opacity 0.3s, max-height 0.4s 0.25s, padding 0.4s 0.25s, margin 0.4s 0.25s;
+    }
+
     .empty-state {
       text-align: center;
       padding: 48px 24px;
@@ -355,18 +371,25 @@
 
     async function deleteSession(sessionId) {
       if (!confirm('Delete this recording? This cannot be undone.')) return;
+      const card = document.getElementById(`card-${sessionId}`);
       const token = localStorage.getItem('authToken');
+
+      card.classList.add('deleting');
       try {
         const res = await fetch(`${API_URL}/api/user/sessions/${sessionId}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (res.ok) {
-          document.getElementById(`card-${sessionId}`).remove();
+          card.classList.remove('deleting');
+          card.classList.add('deleted');
+          card.addEventListener('transitionend', () => card.remove(), { once: true });
         } else {
+          card.classList.remove('deleting');
           alert('Failed to delete recording.');
         }
       } catch (_) {
+        card.classList.remove('deleting');
         alert('Connection error.');
       }
     }
