@@ -210,7 +210,7 @@ async def test_generate_all_audio_uses_same_voice_for_normal_and_slow():
     phrases = ["alpha", "beta", "gamma"]
     calls = []  # list of (phrase, voice_id, speed)
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         calls.append((phrase, voice_id, speed))
         return b"audio"
 
@@ -233,7 +233,7 @@ async def test_generate_all_audio_voices_from_english_pool_by_default():
     phrases = ["alpha", "beta", "gamma"]
     used_voices = []
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         used_voices.append(voice_id)
         return b"audio"
 
@@ -248,7 +248,7 @@ async def test_generate_all_audio_uses_correct_pool_for_language():
     phrases = ["une phrase", "deux phrases"]
     used_voices = []
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         used_voices.append(voice_id)
         return b"audio"
 
@@ -263,7 +263,7 @@ async def test_generate_all_audio_falls_back_to_english_for_unknown_language():
     phrases = ["hello"]
     used_voices = []
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         used_voices.append(voice_id)
         return b"audio"
 
@@ -271,6 +271,35 @@ async def test_generate_all_audio_falls_back_to_english_for_unknown_language():
         await generate_all_audio(phrases, language="Klingon")
 
     assert all(v in VOICE_POOLS["English"] for v in used_voices)
+
+
+async def test_generate_all_audio_passes_correct_lang_code():
+    """generate_all_audio resolves language name to lang code and passes it through."""
+    phrases = ["une phrase"]
+    received_langs = []
+
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
+        received_langs.append(lang)
+        return b"audio"
+
+    with patch("services.tts_service.generate_audio_for_phrase", new=mock_gen):
+        await generate_all_audio(phrases, language="French")
+
+    assert all(lang == "fr" for lang in received_langs)
+
+
+async def test_generate_all_audio_unknown_language_passes_en_lang_code():
+    phrases = ["hello"]
+    received_langs = []
+
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
+        received_langs.append(lang)
+        return b"audio"
+
+    with patch("services.tts_service.generate_audio_for_phrase", new=mock_gen):
+        await generate_all_audio(phrases, language="Klingon")
+
+    assert all(lang == "en" for lang in received_langs)
 
 
 # ── generate_audio_streaming ──────────────────────────────────────────────────
@@ -312,7 +341,7 @@ async def test_generate_audio_streaming_uses_same_voice_per_phrase():
     phrases = ["alpha", "beta"]
     calls = []
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         calls.append((phrase, voice_id, speed))
         return b"audio"
 
@@ -330,7 +359,7 @@ async def test_generate_audio_streaming_uses_correct_language_pool():
     phrases = ["une phrase"]
     used_voices = []
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         used_voices.append(voice_id)
         return b"audio"
 
@@ -345,7 +374,7 @@ async def test_generate_audio_streaming_falls_back_to_english_for_unknown_langua
     phrases = ["hello"]
     used_voices = []
 
-    async def mock_gen(phrase, voice_id, speed=1.0):
+    async def mock_gen(phrase, voice_id, speed=1.0, lang="en"):
         used_voices.append(voice_id)
         return b"audio"
 

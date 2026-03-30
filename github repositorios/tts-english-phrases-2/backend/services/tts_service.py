@@ -93,14 +93,15 @@ async def generate_audio_streaming(
     Existing generate_all_audio is unchanged.
     """
     voice_pool = VOICE_POOLS.get(language, VOICE_POOLS["English"])
+    lang = LANGUAGE_CODES.get(language, "en")
     total = len(phrases)
     sem = asyncio.Semaphore(4)
 
     async def _bounded(i: int, phrase: str) -> tuple[int, tuple[bytes, bytes]]:
         voice = random.choice(voice_pool)
         async with sem:
-            normal = await generate_audio_for_phrase(phrase, voice, speed=1.0)
-            slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED)
+            normal = await generate_audio_for_phrase(phrase, voice, speed=1.0, lang=lang)
+            slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED, lang=lang)
         return i, (normal, slow)
 
     tasks = [asyncio.create_task(_bounded(i, p)) for i, p in enumerate(phrases)]
@@ -115,14 +116,15 @@ async def generate_all_audio(phrases: list[str], language: str = "English") -> l
     Returns a list of (normal_bytes, slow_bytes) tuples, one per phrase.
     """
     voice_pool = VOICE_POOLS.get(language, VOICE_POOLS["English"])
+    lang = LANGUAGE_CODES.get(language, "en")
     sem = asyncio.Semaphore(4)
 
     async def _bounded(phrase: str) -> tuple[bytes, bytes]:
         voice = random.choice(voice_pool)
         async with sem:
-            normal = await generate_audio_for_phrase(phrase, voice, speed=1.0)
+            normal = await generate_audio_for_phrase(phrase, voice, speed=1.0, lang=lang)
         async with sem:
-            slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED)
+            slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED, lang=lang)
         return normal, slow
 
     return await asyncio.gather(*[_bounded(p) for p in phrases])
