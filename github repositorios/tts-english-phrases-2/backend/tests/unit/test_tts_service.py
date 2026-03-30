@@ -18,8 +18,17 @@ from services.tts_service import (
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def make_runpod_response(audio: bytes = b"FAKE_MP3_AUDIO_DATA") -> MagicMock:
-    """Return a mock httpx response shaped like the RunPod /runsync reply (fast path)."""
+def make_run_response(job_id: str = "job-123") -> MagicMock:
+    """Mock for POST /run — returns job id."""
+    mock = MagicMock()
+    mock.status_code = 200
+    mock.raise_for_status = MagicMock()
+    mock.json.return_value = {"id": job_id}
+    return mock
+
+
+def make_status_response(audio: bytes = b"FAKE_MP3_AUDIO_DATA") -> MagicMock:
+    """Mock for GET /status/{job_id} — returns COMPLETED with audio."""
     mock = MagicMock()
     mock.status_code = 200
     mock.raise_for_status = MagicMock()
@@ -27,6 +36,16 @@ def make_runpod_response(audio: bytes = b"FAKE_MP3_AUDIO_DATA") -> MagicMock:
         "status": "COMPLETED",
         "output": {"audio_base64": base64.b64encode(audio).decode()},
     }
+    return mock
+
+
+def make_http_mock(audio: bytes = b"FAKE_MP3_AUDIO_DATA", job_id: str = "job-123") -> MagicMock:
+    """AsyncClient mock wired for /run + /status polling."""
+    mock = MagicMock()
+    mock.__aenter__ = AsyncMock(return_value=mock)
+    mock.__aexit__ = AsyncMock(return_value=None)
+    mock.post = AsyncMock(return_value=make_run_response(job_id))
+    mock.get = AsyncMock(return_value=make_status_response(audio))
     return mock
 
 
@@ -88,96 +107,77 @@ def test_language_codes_correct_values():
 
 async def test_generate_audio_returns_bytes():
     fake_audio = b"FAKE_MP3_AUDIO_DATA"
-
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response(fake_audio))
-
-    with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        result = await generate_audio_for_phrase("Hello world", "af_heart")
-
+    with patch("services.tts_service.httpx.AsyncClient", return_value=make_http_mock(fake_audio)):
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            result = await generate_audio_for_phrase("Hello world", "af_heart")
     assert result == fake_audio
 
 
 async def test_generate_audio_sends_phrase_text():
     phrase = "Je voudrais un café s'il vous plaît"
-
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response())
-
+    mock_http = make_http_mock()
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        await generate_audio_for_phrase(phrase, "af_heart")
-
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            await generate_audio_for_phrase(phrase, "af_heart")
     _, call_kwargs = mock_http.post.call_args
-    assert call_kwargs["json"]["input"]["input"] == phrase
-
-
-async def test_generate_audio_sends_correct_model():
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response())
-
-    with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        await generate_audio_for_phrase("test phrase", "af_heart")
-
-    _, call_kwargs = mock_http.post.call_args
-    assert call_kwargs["json"]["input"]["model"] == "kokoro"
+    assert call_kwargs["json"]["input"]["text"] == phrase
 
 
 async def test_generate_audio_sends_voice_id():
     voice_id = "am_adam"
-
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response())
-
+    mock_http = make_http_mock()
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        await generate_audio_for_phrase("test", voice_id)
-
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            await generate_audio_for_phrase("test", voice_id)
     _, call_kwargs = mock_http.post.call_args
     assert call_kwargs["json"]["input"]["voice"] == voice_id
 
 
 async def test_generate_audio_sends_speed_param():
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response())
-
+    mock_http = make_http_mock()
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        await generate_audio_for_phrase("test", "af_heart", speed=0.7)
-
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            await generate_audio_for_phrase("test", "af_heart", speed=0.7)
     _, call_kwargs = mock_http.post.call_args
     assert call_kwargs["json"]["input"]["speed"] == 0.7
 
 
-async def test_generate_audio_calls_runsync_endpoint():
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response())
-
+async def test_generate_audio_sends_lang_param():
+    mock_http = make_http_mock()
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        await generate_audio_for_phrase("test", "af_heart")
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            await generate_audio_for_phrase("test", "af_heart", lang="pt-br")
+    _, call_kwargs = mock_http.post.call_args
+    assert call_kwargs["json"]["input"]["lang"] == "pt-br"
 
+
+async def test_generate_audio_sends_api_key():
+    mock_http = make_http_mock()
+    with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            with patch("services.tts_service.settings") as mock_settings:
+                mock_settings.RUNPOD_API_KEY = "rp_key"
+                mock_settings.RUNPOD_ENDPOINT_ID = "ep-test"
+                mock_settings.TTS_API_KEY = "secret-key"
+                await generate_audio_for_phrase("test", "af_heart")
+    _, call_kwargs = mock_http.post.call_args
+    assert call_kwargs["json"]["input"]["api_key"] == "secret-key"
+
+
+async def test_generate_audio_calls_run_endpoint():
+    mock_http = make_http_mock()
+    with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            await generate_audio_for_phrase("test", "af_heart")
     url_arg = mock_http.post.call_args.args[0]
-    assert url_arg.endswith("/runsync")
+    assert url_arg.endswith("/run")
 
 
 async def test_generate_audio_sends_authorization_header():
-    mock_http = MagicMock()
-    mock_http.__aenter__ = AsyncMock(return_value=mock_http)
-    mock_http.__aexit__ = AsyncMock(return_value=None)
-    mock_http.post = AsyncMock(return_value=make_runpod_response())
-
+    mock_http = make_http_mock()
     with patch("services.tts_service.httpx.AsyncClient", return_value=mock_http):
-        await generate_audio_for_phrase("test", "af_heart")
-
+        with patch("services.tts_service.asyncio.sleep", new=AsyncMock()):
+            await generate_audio_for_phrase("test", "af_heart")
     _, call_kwargs = mock_http.post.call_args
     assert "Authorization" in call_kwargs["headers"]
     assert call_kwargs["headers"]["Authorization"].startswith("Bearer ")
