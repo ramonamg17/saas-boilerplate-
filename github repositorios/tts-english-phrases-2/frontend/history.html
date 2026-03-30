@@ -154,6 +154,20 @@
 
     .play-btn:hover { background: rgba(108,99,255,0.3); }
 
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 6px;
+      border-radius: 6px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .delete-btn:hover { color: var(--error); background: rgba(239,83,80,0.1); }
+
     .empty-state {
       text-align: center;
       padding: 48px 24px;
@@ -224,6 +238,8 @@
       <button id="btn-logout">Sign out</button>
     </div>
   </nav>
+
+  <a href="/app" style="width:100%;max-width:520px;display:inline-block;margin-bottom:12px;font-size:0.85rem;color:var(--text-muted);text-decoration:none;">← Back to app</a>
 
   <h2>Your recordings</h2>
 
@@ -323,7 +339,7 @@
       }
 
       container.innerHTML = sessions.map(s => `
-        <div class="session-card">
+        <div class="session-card" id="card-${s.id}">
           <div class="session-info">
             <div class="session-topic">${escapeHtml(s.topic)}</div>
             <div class="session-meta">${escapeHtml(s.language)} · ${s.duration_minutes} min</div>
@@ -332,9 +348,28 @@
           ${s.audio_url
             ? `<a class="play-btn" href="${escapeHtml(s.audio_url)}" target="_blank" title="Ouvir" onclick="markPlayed('${s.id}')">▶</a>`
             : ''}
+          <button class="delete-btn" onclick="deleteSession('${s.id}')" title="Delete">🗑</button>
         </div>
       `).join('');
     })();
+
+    async function deleteSession(sessionId) {
+      if (!confirm('Delete this recording? This cannot be undone.')) return;
+      const token = localStorage.getItem('authToken');
+      try {
+        const res = await fetch(`${API_URL}/api/user/sessions/${sessionId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) {
+          document.getElementById(`card-${sessionId}`).remove();
+        } else {
+          alert('Failed to delete recording.');
+        }
+      } catch (_) {
+        alert('Connection error.');
+      }
+    }
 
     function escapeHtml(str) {
       return String(str)

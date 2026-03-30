@@ -153,6 +153,35 @@ async def mark_session_played(
     return {"ok": True}
 
 
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a session and its audio file."""
+    from services.storage_service import delete_session_file
+
+    result = await db.execute(
+        select(TtsSession).where(
+            TtsSession.id == session_id,
+            TtsSession.user_id == user.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        delete_session_file(session_id)
+    except Exception:
+        pass  # proceed even if storage deletion fails
+
+    await db.delete(session)
+    await db.flush()
+    return {"ok": True}
+
+
 @router.get("/plans")
 async def get_plans():
     """Return all available plans."""
