@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     TTS_SERVICE_URL: str = "http://localhost:8880"
     RUNPOD_API_KEY: str = ""
     RUNPOD_ENDPOINT_ID: str = ""
+    TTS_API_KEY: str = ""
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     SUPABASE_BUCKET: str = "audio-sessions"
