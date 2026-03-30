@@ -12,14 +12,25 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 VOICE_POOLS = {
-    "English":             ["af_heart", "af_bella", "am_adam"],
-    "Spanish":             ["sf_lucia", "sf_isabella", "sm_javier"],
+    "English":             ["af_heart", "af_bella", "am_adam", "af_nova", "am_michael"],
+    "English (UK)":        ["bf_emma", "bf_alice", "bm_george", "bm_daniel"],
+    "Spanish":             ["ef_dora", "em_alex", "em_santa"],
     "Portuguese (Brazil)": ["pf_dora", "pm_alex", "pm_santa"],
-    "French":              ["ff_camille", "ff_bernadette", "fm_louis"],
-    "German":              ["df_marlene", "df_lina", "dm_hans"],
-    "Italian":             ["if_bianca", "im_giorgio"],
-    "Japanese":            ["jf_haruka", "jf_yuki", "jm_takumi"],
-    "Russian":             ["rf_irina", "rm_ilya"],
+    "French":              ["ff_siwis"],
+    "Italian":             ["if_sara", "im_nicola"],
+    "Japanese":            ["jf_alpha", "jf_gongitsune", "jm_kumo"],
+    "Chinese":             ["zf_xiaobei", "zf_xiaoni", "zm_yunxi", "zm_yunyang"],
+}
+
+LANGUAGE_CODES = {
+    "English":             "en",
+    "English (UK)":        "en-gb",
+    "Spanish":             "es",
+    "Portuguese (Brazil)": "pt-br",
+    "French":              "fr",
+    "Italian":             "it",
+    "Japanese":            "ja",
+    "Chinese":             "zh",
 }
 
 RUNPOD_ENDPOINT_ID = settings.RUNPOD_ENDPOINT_ID

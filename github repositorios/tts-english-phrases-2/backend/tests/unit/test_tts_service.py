@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from services.tts_service import (
     VOICE_POOLS,
+    LANGUAGE_CODES,
     RUNPOD_ENDPOINT_ID,
     generate_audio_for_phrase,
     generate_all_audio,
@@ -44,7 +45,10 @@ def test_runpod_endpoint_id_reads_from_settings(monkeypatch):
 # ── VOICE_POOLS ───────────────────────────────────────────────────────────────
 
 def test_voice_pools_covers_all_supported_languages():
-    supported = {"English", "Spanish", "Portuguese (Brazil)", "French", "German", "Italian", "Japanese", "Russian"}
+    supported = {
+        "English", "English (UK)", "Spanish", "Portuguese (Brazil)",
+        "French", "Italian", "Japanese", "Chinese"
+    }
     assert supported == set(VOICE_POOLS.keys())
 
 
@@ -61,6 +65,23 @@ def test_voice_pools_english_contains_expected_voices():
     assert "af_heart" in VOICE_POOLS["English"]
     assert "af_bella" in VOICE_POOLS["English"]
     assert "am_adam" in VOICE_POOLS["English"]
+
+
+# ── LANGUAGE_CODES ────────────────────────────────────────────────────────────
+
+def test_language_codes_covers_all_supported_languages():
+    assert set(LANGUAGE_CODES.keys()) == set(VOICE_POOLS.keys())
+
+
+def test_language_codes_correct_values():
+    assert LANGUAGE_CODES["English"] == "en"
+    assert LANGUAGE_CODES["English (UK)"] == "en-gb"
+    assert LANGUAGE_CODES["Spanish"] == "es"
+    assert LANGUAGE_CODES["Portuguese (Brazil)"] == "pt-br"
+    assert LANGUAGE_CODES["French"] == "fr"
+    assert LANGUAGE_CODES["Italian"] == "it"
+    assert LANGUAGE_CODES["Japanese"] == "ja"
+    assert LANGUAGE_CODES["Chinese"] == "zh"
 
 
 # ── generate_audio_for_phrase ─────────────────────────────────────────────────
