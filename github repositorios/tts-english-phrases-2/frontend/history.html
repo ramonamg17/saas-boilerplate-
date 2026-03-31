@@ -101,8 +101,8 @@
       border-radius: var(--radius);
       padding: 16px 20px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
       text-decoration: none;
       transition: border-color 0.15s;
@@ -110,6 +110,13 @@
 
     .session-card:hover {
       border-color: var(--accent);
+    }
+
+    .card-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
     }
 
     .session-info { flex: 1; min-width: 0; }
@@ -147,12 +154,83 @@
       justify-content: center;
       flex-shrink: 0;
       color: var(--accent);
-      text-decoration: none;
-      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 0;
       transition: background 0.15s;
     }
 
     .play-btn:hover { background: rgba(108,99,255,0.3); }
+
+    .play-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: var(--accent);
+      pointer-events: none;
+    }
+
+    .download-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 5px 8px;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .download-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    .player-panel {
+      width: 100%;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      padding: 0;
+    }
+    .player-panel.open {
+      max-height: 120px;
+      padding-top: 12px;
+    }
+
+    .mini-seek-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .mini-seek {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 4px;
+    }
+    .mini-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 90px;
+      text-align: right;
+    }
+
+    .mini-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .skip-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      font-family: var(--font);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .skip-btn:hover { color: var(--text); border-color: var(--accent); }
 
     .delete-btn {
       background: none;
@@ -356,18 +434,133 @@
 
       container.innerHTML = sessions.map(s => `
         <div class="session-card" id="card-${s.id}">
-          <div class="session-info">
-            <div class="session-topic">${escapeHtml(s.topic)}</div>
-            <div class="session-meta">${escapeHtml(s.language)} · ${s.duration_minutes} min</div>
+          <div class="card-summary">
+            <div class="session-info">
+              <div class="session-topic">${escapeHtml(s.topic)}</div>
+              <div class="session-meta">${escapeHtml(s.language)} · ${s.duration_minutes} min</div>
+            </div>
+            <span class="session-time">${relativeTime(s.created_at)}</span>
+            ${s.audio_url ? `
+              <button class="play-btn" id="play-${s.id}"
+                      onclick="togglePlayer('${s.id}', '${escapeHtml(s.audio_url)}')" title="Play">
+                <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6zm8-14v14h4V5z"/></svg>
+              </button>
+              <a class="download-btn" href="${escapeHtml(s.audio_url)}" target="_blank" title="Download">⬇</a>
+            ` : ''}
+            <button class="delete-btn" onclick="deleteSession('${s.id}')" title="Delete">🗑</button>
           </div>
-          <span class="session-time">${relativeTime(s.created_at)}</span>
-          ${s.audio_url
-            ? `<a class="play-btn" href="${escapeHtml(s.audio_url)}" target="_blank" title="Ouvir" onclick="markPlayed('${s.id}')">▶</a>`
-            : ''}
-          <button class="delete-btn" onclick="deleteSession('${s.id}')" title="Delete">🗑</button>
+          ${s.audio_url ? `
+            <div class="player-panel" id="player-${s.id}">
+              <audio id="audio-${s.id}" src="${escapeHtml(s.audio_url)}" preload="none"></audio>
+              <div class="mini-seek-row">
+                <input type="range" class="mini-seek" id="seek-${s.id}"
+                       min="0" max="100" value="0" step="0.1"
+                       oninput="seekTo('${s.id}')" />
+                <span class="mini-time" id="time-${s.id}">0:00 / 0:00</span>
+              </div>
+              <div class="mini-controls">
+                <button class="skip-btn" onclick="skipTime('${s.id}', -5)">⏪ 5s</button>
+                <button class="skip-btn" onclick="skipTime('${s.id}', 5)">5s ⏩</button>
+              </div>
+            </div>
+          ` : ''}
         </div>
       `).join('');
     })();
+
+    let currentPlayerId = null;
+
+    function formatTime(s) {
+      if (!s || isNaN(s)) return '0:00';
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return m + ':' + String(sec).padStart(2, '0');
+    }
+
+    function setPlayIcon(sessionId, playing) {
+      const btn = document.getElementById('play-' + sessionId);
+      if (!btn) return;
+      btn.querySelector('.icon-play').style.display = playing ? 'none' : '';
+      btn.querySelector('.icon-pause').style.display = playing ? '' : 'none';
+    }
+
+    function closePlayer(sessionId) {
+      const panel = document.getElementById('player-' + sessionId);
+      const audio = document.getElementById('audio-' + sessionId);
+      if (!panel) return;
+      panel.classList.remove('open');
+      if (audio) { audio.pause(); audio.currentTime = 0; }
+      setPlayIcon(sessionId, false);
+      const seek = document.getElementById('seek-' + sessionId);
+      const time = document.getElementById('time-' + sessionId);
+      if (seek) seek.value = 0;
+      if (time) time.textContent = '0:00 / 0:00';
+    }
+
+    function togglePlayer(sessionId, audioUrl) {
+      // close previously open player
+      if (currentPlayerId && currentPlayerId !== sessionId) {
+        closePlayer(currentPlayerId);
+        currentPlayerId = null;
+      }
+
+      const panel = document.getElementById('player-' + sessionId);
+      const audio = document.getElementById('audio-' + sessionId);
+      if (!panel || !audio) return;
+
+      if (!panel.classList.contains('open')) {
+        // open and start playing
+        panel.classList.add('open');
+        currentPlayerId = sessionId;
+        markPlayed(sessionId);
+
+        // wire events once
+        if (!audio.dataset.wired) {
+          audio.dataset.wired = '1';
+          audio.addEventListener('timeupdate', () => {
+            if (!audio.duration) return;
+            const seek = document.getElementById('seek-' + sessionId);
+            const time = document.getElementById('time-' + sessionId);
+            if (seek) seek.value = (audio.currentTime / audio.duration) * 100;
+            if (time) time.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+          });
+          audio.addEventListener('ended', () => {
+            audio.currentTime = 0;
+            setPlayIcon(sessionId, false);
+            const seek = document.getElementById('seek-' + sessionId);
+            const time = document.getElementById('time-' + sessionId);
+            if (seek) seek.value = 0;
+            if (time) time.textContent = '0:00 / ' + formatTime(audio.duration);
+            currentPlayerId = null;
+          });
+        }
+
+        audio.play().then(() => setPlayIcon(sessionId, true)).catch(() => {});
+      } else {
+        // toggle play/pause
+        if (audio.paused) {
+          audio.play().then(() => setPlayIcon(sessionId, true)).catch(() => {});
+        } else {
+          audio.pause();
+          setPlayIcon(sessionId, false);
+        }
+      }
+    }
+
+    function skipTime(sessionId, delta) {
+      const audio = document.getElementById('audio-' + sessionId);
+      if (!audio) return;
+      audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
+    }
+
+    function seekTo(sessionId) {
+      const audio = document.getElementById('audio-' + sessionId);
+      const seek = document.getElementById('seek-' + sessionId);
+      if (audio && audio.duration && seek) {
+        audio.currentTime = (seek.value / 100) * audio.duration;
+      }
+    }
 
     async function deleteSession(sessionId) {
       if (!confirm('Delete this recording? This cannot be undone.')) return;
