@@ -96,6 +96,9 @@
       display: inline-block;
     }
 
+    .btn-nav,
+    .nav-links .btn-nav { color: #fff; }
+
     .btn-nav:hover { background: var(--accent); }
 
     /* ── Hamburger button (mobile only) ─────────────────────────────────── */
@@ -835,6 +838,15 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    // If user is already signed in, redirect all "Sign in" links to the app
+    if (localStorage.getItem('authToken')) {
+      document.querySelectorAll('a[href="/login.html"]').forEach(function(link) {
+        link.href = '/app';
+      });
+    }
+  </script>
 
 </body>
 </html>

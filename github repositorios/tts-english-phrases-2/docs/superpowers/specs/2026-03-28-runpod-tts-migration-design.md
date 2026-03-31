@@ -87,7 +87,9 @@ async def generate_audio_for_phrase(phrase, voice_id, speed=1.0, lang="en") -> b
             "api_key": settings.TTS_API_KEY,
         }
     }
-    # POST /run → get job_id → poll /status/{job_id} until COMPLETED or FAILED
+    # POST /run → get job_id
+    # Poll /status/{job_id} every 5s, up to 60 attempts (5 min max)
+    # Raise RuntimeError on FAILED; raise TimeoutError if 5 min exceeded
 ```
 
 Key changes from old implementation:
