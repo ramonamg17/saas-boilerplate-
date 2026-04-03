@@ -52,9 +52,7 @@ class Settings(BaseSettings):
 
     # ── TTS App specific ──────────────────────────────────────────────
     OPENAI_API_KEY: str = ""
-    RUNPOD_API_KEY: str = ""
-    RUNPOD_ENDPOINT_ID: str = ""
-    TTS_API_KEY: str = ""
+    GOOGLE_TTS_API_KEY: str = ""
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     SUPABASE_BUCKET: str = "audio-sessions"

@@ -14,6 +14,7 @@ os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_placeholder")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_placeholder")
 os.environ.setdefault("RESEND_API_KEY", "re_test_placeholder")
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
+os.environ.setdefault("GOOGLE_TTS_API_KEY", "test-google-tts-key")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_KEY", "test-supabase-key")
 
@@ -61,15 +62,6 @@ def make_moderation_result(
 def make_moderation_response(flags: list[bool]) -> MagicMock:
     resp = MagicMock()
     resp.results = [make_moderation_result(flagged=f) for f in flags]
-    return resp
-
-
-# ── Kokoro TTS HTTP response factory ─────────────────────────────────────────
-
-def make_kokoro_response(audio_bytes: bytes = b"FAKE_AUDIO") -> MagicMock:
-    resp = MagicMock()
-    resp.content = audio_bytes
-    resp.raise_for_status = MagicMock()
     return resp
 
 
