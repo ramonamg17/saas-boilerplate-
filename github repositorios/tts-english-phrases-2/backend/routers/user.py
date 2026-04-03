@@ -36,8 +36,28 @@ class DeleteRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 @router.get("/settings")
-async def get_settings(user: User = Depends(get_current_user)):
-    """Return the current user's settings."""
+async def get_settings(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current user's settings including monthly usage."""
+    from datetime import datetime, timezone
+    from sqlalchemy import func, select as sa_select
+    from plans import get_plan
+
+    plan = get_plan(user.plan)
+    minutes_limit = plan["limits"]["minutes_per_month"]
+
+    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    result = await db.execute(
+        sa_select(func.coalesce(func.sum(TtsSession.duration_minutes), 0)).where(
+            TtsSession.user_id == user.id,
+            TtsSession.created_at >= month_start,
+            TtsSession.status != "error",
+        )
+    )
+    minutes_used = result.scalar_one()
+
     return {
         "id": user.id,
         "email": user.email,
@@ -47,6 +67,8 @@ async def get_settings(user: User = Depends(get_current_user)):
         "is_admin": user.is_admin,
         "auth_provider": user.auth_provider,
         "created_at": user.created_at,
+        "minutes_used_this_month": minutes_used,
+        "minutes_limit": minutes_limit,
     }
 
 
