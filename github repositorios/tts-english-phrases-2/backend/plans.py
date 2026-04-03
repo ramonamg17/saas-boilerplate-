@@ -13,8 +13,9 @@ from typing import TypedDict
 class PlanLimits(TypedDict):
     requests_per_hour: int
     sessions_per_day: int    # used for guest plan; 0 = not applicable
-    sessions_per_month: int  # used for free plan; 0 = unlimited
+    sessions_per_month: int  # 0 = unlimited
     max_duration_minutes: int
+    minutes_per_month: int   # monthly TTS generation budget; 0 = unlimited
 
 
 class Plan(TypedDict):
@@ -38,6 +39,7 @@ PLANS: dict[str, Plan] = {
             "sessions_per_day": 1,
             "sessions_per_month": 0,
             "max_duration_minutes": 5,
+            "minutes_per_month": 5,
         },
     },
     "free": {
@@ -49,21 +51,23 @@ PLANS: dict[str, Plan] = {
         "limits": {
             "requests_per_hour": 20,
             "sessions_per_day": 0,
-            "sessions_per_month": 5,
+            "sessions_per_month": 0,
             "max_duration_minutes": 15,
+            "minutes_per_month": 30,
         },
     },
     "pro": {
         "key": "pro",
         "name": "Pro",
-        "price": 19.0,
+        "price": 9.0,
         "stripe_price_id": "price_placeholder_pro",  # EDIT: replace with real Stripe price ID
         "trial_days": 14,
         "limits": {
             "requests_per_hour": 500,
             "sessions_per_day": 0,
-            "sessions_per_month": 0,  # 0 = unlimited
+            "sessions_per_month": 0,
             "max_duration_minutes": 30,
+            "minutes_per_month": 120,
         },
     },
 }
