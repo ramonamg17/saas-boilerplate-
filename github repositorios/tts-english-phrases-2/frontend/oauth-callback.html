@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing in… – LinguaFlow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f13; --surface: #1a1a24; --border: #2e2e40;
+      --accent: #6c63ff; --text: #e8e8f0; --text-muted: #8888a8;
+      --error: #ef5350; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--font);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px 16px;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 40px 32px; width: 100%; max-width: 380px; text-align: center;
+    }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+    p { color: var(--text-muted); font-size: 0.875rem; }
+    .error-msg {
+      background: rgba(239,83,80,0.1); border: 1px solid var(--error);
+      border-radius: 8px; padding: 12px 14px; font-size: 0.875rem;
+      color: var(--error); margin-top: 16px; display: none;
+    }
+    a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="spinner" id="spinner"></div>
+    <h2 id="status-title">Signing you in…</h2>
+    <p id="status-body">Please wait a moment.</p>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+
+    (async function handleCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const state = params.get('state') || '';
+
+      if (!code) {
+        showError('No authorization code received. <a href="/">Try again</a>');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/api/auth/google/callback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, state }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showError(err.detail || 'Sign-in failed. <a href="/">Try again</a>');
+          return;
+        }
+
+        const data = await res.json();
+        localStorage.setItem('authToken', data.access_token);
+
+        const returnTo = localStorage.getItem('loginReturnTo') || '/';
+        localStorage.removeItem('loginReturnTo');
+        window.location.href = returnTo;
+      } catch (_) {
+        showError('Connection error. <a href="/">Try again</a>');
+      }
+    })();
+
+    function showError(html) {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('status-title').textContent = 'Sign-in failed';
+      document.getElementById('status-body').textContent = '';
+      const errEl = document.getElementById('error-msg');
+      errEl.innerHTML = html;
+      errEl.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
