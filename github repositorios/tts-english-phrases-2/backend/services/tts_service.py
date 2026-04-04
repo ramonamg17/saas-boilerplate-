@@ -5,102 +5,116 @@ import random
 from typing import AsyncGenerator
 
 import httpx
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 VOICE_POOLS = {
-    "English":             ["af_heart", "af_bella", "am_adam", "af_nova", "am_michael"],
-    "English (UK)":        ["bf_emma", "bf_alice", "bm_george", "bm_daniel"],
-    "Spanish":             ["ef_dora", "em_alex", "em_santa"],
-    "Portuguese (Brazil)": ["pf_dora", "pm_alex", "pm_santa"],
-    "French":              ["ff_siwis"],
-    "Italian":             ["if_sara", "im_nicola"],
-    "Japanese":            ["jf_alpha", "jf_gongitsune", "jm_kumo"],
-    "Chinese":             ["zf_xiaobei", "zf_xiaoni", "zm_yunxi", "zm_yunyang"],
+    "English":             ["en-US-Neural2-A", "en-US-Neural2-C", "en-US-Neural2-D", "en-US-Neural2-F", "en-US-Neural2-H"],
+    "English (UK)":        ["en-GB-Neural2-A", "en-GB-Neural2-B", "en-GB-Neural2-C", "en-GB-Neural2-D"],
+    "Spanish":             ["es-ES-Neural2-A", "es-ES-Neural2-B", "es-US-Neural2-A"],
+    "Portuguese (Brazil)": ["pt-BR-Neural2-A", "pt-BR-Neural2-B", "pt-BR-Neural2-C"],
+    "French":              ["fr-FR-Neural2-A", "fr-FR-Neural2-B", "fr-FR-Neural2-C"],
+    "Italian":             ["it-IT-Neural2-A", "it-IT-Neural2-C"],
+    "Japanese":            ["ja-JP-Neural2-B", "ja-JP-Neural2-C", "ja-JP-Neural2-D"],
+    "Chinese":             ["cmn-CN-Wavenet-A", "cmn-CN-Wavenet-B", "cmn-CN-Wavenet-C", "cmn-CN-Wavenet-D"],
+    "German":              ["de-DE-Neural2-A", "de-DE-Neural2-B", "de-DE-Neural2-C", "de-DE-Neural2-D"],
+    "Korean":              ["ko-KR-Neural2-A", "ko-KR-Neural2-B", "ko-KR-Neural2-C"],
+    "Hindi":               ["hi-IN-Neural2-A", "hi-IN-Neural2-B", "hi-IN-Neural2-C", "hi-IN-Neural2-D"],
+    "Arabic":              ["ar-XA-Wavenet-A", "ar-XA-Wavenet-B", "ar-XA-Wavenet-C", "ar-XA-Wavenet-D"],
+    "Russian":             ["ru-RU-Wavenet-A", "ru-RU-Wavenet-B", "ru-RU-Wavenet-C", "ru-RU-Wavenet-D"],
+    "Dutch":               ["nl-NL-Neural2-A", "nl-NL-Neural2-B", "nl-NL-Neural2-C", "nl-NL-Neural2-D"],
+    "Polish":              ["pl-PL-Wavenet-A", "pl-PL-Wavenet-B", "pl-PL-Wavenet-C"],
+    "Swedish":             ["sv-SE-Wavenet-A", "sv-SE-Wavenet-B", "sv-SE-Wavenet-C", "sv-SE-Wavenet-D"],
+    "Turkish":             ["tr-TR-Wavenet-A", "tr-TR-Wavenet-B", "tr-TR-Wavenet-C", "tr-TR-Wavenet-D"],
+    "Vietnamese":          ["vi-VN-Wavenet-A", "vi-VN-Wavenet-B", "vi-VN-Wavenet-C", "vi-VN-Wavenet-D"],
 }
 
 LANGUAGE_CODES = {
-    "English":             "en",
-    "English (UK)":        "en-gb",
-    "Spanish":             "es",
-    "Portuguese (Brazil)": "pt-br",
-    "French":              "fr",
-    "Italian":             "it",
-    "Japanese":            "ja",
-    "Chinese":             "zh",
+    "English":             "en-US",
+    "English (UK)":        "en-GB",
+    "Spanish":             "es-ES",
+    "Portuguese (Brazil)": "pt-BR",
+    "French":              "fr-FR",
+    "Italian":             "it-IT",
+    "Japanese":            "ja-JP",
+    "Chinese":             "cmn-CN",
+    "German":              "de-DE",
+    "Korean":              "ko-KR",
+    "Hindi":               "hi-IN",
+    "Arabic":              "ar-XA",
+    "Russian":             "ru-RU",
+    "Dutch":               "nl-NL",
+    "Polish":              "pl-PL",
+    "Swedish":             "sv-SE",
+    "Turkish":             "tr-TR",
+    "Vietnamese":          "vi-VN",
 }
 
-RUNPOD_ENDPOINT_ID = settings.RUNPOD_ENDPOINT_ID
 SLOW_SPEED = 0.7
+SLOW_RATE = "75%"
+_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
+
+# Shared async client — reuses connections across all TTS calls
+_client: httpx.AsyncClient | None = None
 
 
-def _is_retryable_error(exc: BaseException) -> bool:
-    if isinstance(exc, httpx.HTTPStatusError):
-        return exc.response.status_code == 429 or exc.response.status_code >= 500
-    return True
+def _get_async_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(timeout=30)
+    return _client
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception(_is_retryable_error),
-)
-async def generate_audio_for_phrase(
-    phrase: str, voice_id: str, speed: float = 1.0, lang: str = "en"
-) -> bytes:
-    url = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}"
-    headers = {"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"}
+async def _synthesize_async(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
+    """Async Google TTS REST call with connection reuse."""
+    if slow:
+        input_ = {"ssml": f'<speak><prosody rate="{SLOW_RATE}">{text}</prosody></speak>'}
+    else:
+        input_ = {"text": text}
     payload = {
-        "input": {
-            "text": phrase,
-            "voice": voice_id,
-            "lang": lang,
-            "speed": speed,
-            "format": "mp3",
-            "api_key": settings.TTS_API_KEY,
-        }
+        "input": input_,
+        "voice": {"languageCode": lang_code, "name": voice_name},
+        "audioConfig": {"audioEncoding": "MP3"},
     }
+    resp = await _get_async_client().post(
+        _TTS_URL,
+        params={"key": settings.GOOGLE_TTS_API_KEY},
+        json=payload,
+    )
+    resp.raise_for_status()
+    return base64.b64decode(resp.json()["audioContent"])
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.post(f"{url}/run", json=payload, headers=headers)
-        r.raise_for_status()
-        job_id = r.json()["id"]
 
-        for _ in range(60):  # up to 5 min (60 × 5s)
-            await asyncio.sleep(5)
-            r2 = await client.get(f"{url}/status/{job_id}", headers=headers)
-            r2.raise_for_status()
-            data = r2.json()
-            if data["status"] == "COMPLETED":
-                return base64.b64decode(data["output"]["audio_base64"])
-            if data["status"] == "FAILED":
-                raise RuntimeError(f"TTS job failed: {data.get('error', '')[:200]}")
+# Keep _synthesize_sync for test compatibility
+def _synthesize_sync(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
+    """Synchronous wrapper used only in tests via mocking."""
+    raise NotImplementedError("Use _synthesize_async in production")
 
-    raise TimeoutError(f"TTS job timed out: {job_id}")
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+async def generate_audio_for_phrase(
+    phrase: str, voice_id: str, speed: float = 1.0, lang: str = "en-US"
+) -> bytes:
+    slow = speed < 1.0
+    return await _synthesize_async(phrase, voice_id, lang, slow)
 
 
 async def generate_audio_streaming(
     phrases: list[str],
     language: str = "English",
 ) -> AsyncGenerator[tuple[int, int, tuple[bytes, bytes]], None]:
-    """Yields (index, total, (normal_bytes, slow_bytes)) as each phrase completes.
-
-    Completion order may differ from input order (as_completed semantics).
-    Keeps the same semaphore(4) concurrency as generate_all_audio.
-    Existing generate_all_audio is unchanged.
-    """
+    """Yields (index, total, (normal_bytes, slow_bytes)) as each phrase completes."""
     voice_pool = VOICE_POOLS.get(language, VOICE_POOLS["English"])
-    lang = LANGUAGE_CODES.get(language, "en")
+    lang = LANGUAGE_CODES.get(language, "en-US")
     total = len(phrases)
     sem = asyncio.Semaphore(4)
 
     async def _bounded(i: int, phrase: str) -> tuple[int, tuple[bytes, bytes]]:
         voice = random.choice(voice_pool)
         async with sem:
-            # Hold semaphore for both calls to keep each phrase's pair together
             normal = await generate_audio_for_phrase(phrase, voice, speed=1.0, lang=lang)
             slow = await generate_audio_for_phrase(phrase, voice, speed=SLOW_SPEED, lang=lang)
         return i, (normal, slow)
@@ -112,12 +126,9 @@ async def generate_audio_streaming(
 
 
 async def generate_all_audio(phrases: list[str], language: str = "English") -> list[tuple[bytes, bytes]]:
-    """Generate normal and slow audio for each phrase using the same voice.
-
-    Returns a list of (normal_bytes, slow_bytes) tuples, one per phrase.
-    """
+    """Generate normal and slow audio for each phrase using the same voice."""
     voice_pool = VOICE_POOLS.get(language, VOICE_POOLS["English"])
-    lang = LANGUAGE_CODES.get(language, "en")
+    lang = LANGUAGE_CODES.get(language, "en-US")
     sem = asyncio.Semaphore(4)
 
     async def _bounded(phrase: str) -> tuple[bytes, bytes]:

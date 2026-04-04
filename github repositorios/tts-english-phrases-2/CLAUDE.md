@@ -38,7 +38,7 @@ cd backend
 python -m pytest tests/unit tests/integration -v
 ```
 
-- All 68 tests must pass (unit + integration)
+- All 105 tests must pass (unit + integration)
 - Do NOT move on if any test is red — fix it first, then commit
 - Once tests pass: `git add -A && git commit -m "<descriptive message>"`
 - Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`
@@ -70,9 +70,7 @@ backend/tests/
 Copy `backend/.env.example` to `backend/.env` and fill in:
 ```
 OPENAI_API_KEY=
-RUNPOD_ENDPOINT_ID=
-RUNPOD_API_KEY=
-TTS_API_KEY=
+GOOGLE_TTS_API_KEY=
 SUPABASE_URL=
 SUPABASE_KEY=
 ```
@@ -91,55 +89,48 @@ When the user reports a bug or UI error, before investigating the code Claude mu
 - `upload_session` is imported directly in `main.py` — always patch as `main.upload_session` in tests, not `services.storage_service.upload_session`
 - pydub's `AudioSegment.from_mp3` and `AudioSegment.export` require ffmpeg (not available locally on Windows); both are mocked in tests
 - ffmpeg is installed in the Docker image for Railway deployment
-- `tts_service.py`: voices are stored in a `VOICE_POOLS` dict keyed by language name (e.g. `"English"`, `"Chinese"`); `generate_all_audio(phrases, language="English")` selects randomly from the language-specific pool; unknown languages fall back to English pool and `"en"` lang code. A `LANGUAGE_CODES` dict maps language name → RunPod `lang` param (e.g. `"Portuguese (Brazil)"` → `"pt-br"`)
+- `tts_service.py`: voices are stored in a `VOICE_POOLS` dict keyed by language name (e.g. `"English"`, `"Chinese"`); `generate_all_audio(phrases, language="English")` selects randomly from the language-specific pool; unknown languages fall back to English pool and `"en-US"` lang code. A `LANGUAGE_CODES` dict maps language name → BCP-47 code (e.g. `"Portuguese (Brazil)"` → `"pt-BR"`)
 
-## Kokoro TTS Service
+## Google Cloud TTS Service
 
-Audio is generated via a RunPod serverless endpoint running the Kokoro-82M model.
+Audio is generated via the Google Cloud Text-to-Speech REST API (Neural2/WaveNet voices).
 
-**Required env vars:**
+**Required env var:**
 ```
-RUNPOD_ENDPOINT_ID=2r9htace1yaroi
-RUNPOD_API_KEY=<your RunPod key>
-TTS_API_KEY=<shared secret — must match what the worker expects>
+GOOGLE_TTS_API_KEY=<your Google Cloud API key with TTS enabled>
 ```
 
-**Request format** (sent to `POST https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}/run`):
-```json
-{
-  "input": {
-    "text": "Hello world",
-    "voice": "af_heart",
-    "lang": "en",
-    "speed": 1.0,
-    "format": "mp3",
-    "api_key": "<TTS_API_KEY>"
-  }
-}
-```
+**How it works:**
+- Direct REST calls to `https://texttospeech.googleapis.com/v1/text:synthesize?key={API_KEY}`
+- Uses `httpx.AsyncClient` with connection reuse (shared `_client` instance) for performance
+- Normal speed: plain text input
+- Slow speed (0.7×): SSML with `<prosody rate="75%">` wrapping
+- Concurrency: `asyncio.Semaphore(4)` limits parallel calls
+- Retry: tenacity with 3 attempts, exponential backoff
 
-**Response** (polled via `GET /status/{job_id}` until `status == "COMPLETED"`):
-```json
-{
-  "output": {
-    "audio_base64": "<base64-encoded MP3>",
-    "format": "mp3",
-    "voice": "af_heart"
-  }
-}
-```
+**Supported languages and voices (VOICE_POOLS):**
 
-**Supported languages and voices:**
-
-| Language | `lang` | Sample voices |
+| Language | BCP-47 | Voice type |
 |---|---|---|
-| English | `en` | af_heart, af_bella, am_adam, af_nova, am_michael |
-| English (UK) | `en-gb` | bf_emma, bf_alice, bm_george, bm_daniel |
-| Spanish | `es` | ef_dora, em_alex, em_santa |
-| Portuguese (Brazil) | `pt-br` | pf_dora, pm_alex, pm_santa |
-| French | `fr` | ff_siwis |
-| Italian | `it` | if_sara, im_nicola |
-| Japanese | `ja` | jf_alpha, jf_gongitsune, jm_kumo |
-| Chinese | `zh` | zf_xiaobei, zf_xiaoni, zm_yunxi, zm_yunyang |
+| English | en-US | Neural2 |
+| English (UK) | en-GB | Neural2 |
+| Spanish | es-ES | Neural2 |
+| Portuguese (Brazil) | pt-BR | Neural2 |
+| French | fr-FR | Neural2 |
+| Italian | it-IT | Neural2 |
+| Japanese | ja-JP | Neural2 |
+| Chinese | cmn-CN | WaveNet |
+| German | de-DE | Neural2 |
+| Korean | ko-KR | Neural2 |
+| Hindi | hi-IN | Neural2 |
+| Arabic | ar-XA | WaveNet |
+| Russian | ru-RU | WaveNet |
+| Dutch | nl-NL | Neural2 |
+| Polish | pl-PL | WaveNet |
+| Swedish | sv-SE | WaveNet |
+| Turkish | tr-TR | WaveNet |
+| Vietnamese | vi-VN | WaveNet |
 
-**Cold start:** The endpoint scales to zero. First call after idle may take 5–15s; subsequent calls are fast.
+**Performance:** ~2.5 minutes to generate a 5-minute session (42 phrases × normal + slow).
+
+**Cost:** Neural2 = $16/1M chars, WaveNet = $4/1M chars. A 5-min session ≈ $0.13.

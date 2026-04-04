@@ -6,6 +6,7 @@ pydub
 ffmpeg-python
 supabase
 tenacity
+google-cloud-texttospeech
 apscheduler
 python-dotenv
 python-multipart
