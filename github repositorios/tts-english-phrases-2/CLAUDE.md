@@ -38,7 +38,7 @@ cd backend
 python -m pytest tests/unit tests/integration -v
 ```
 
-- All 105 tests must pass (unit + integration)
+- All 103 tests must pass (unit + integration)
 - Do NOT move on if any test is red — fix it first, then commit
 - Once tests pass: `git add -A && git commit -m "<descriptive message>"`
 - Use conventional commit prefixes: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`

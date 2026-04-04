@@ -54,29 +54,8 @@
     .nav-right {
       display: flex;
       align-items: center;
-      gap: 12px;
-      font-size: 0.8rem;
-    }
-
-    .nav-right .user-email {
-      color: var(--text-muted);
-    }
-
-    .nav-right button {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-family: var(--font);
-      padding: 5px 10px;
-      transition: all 0.15s;
-    }
-
-    .nav-right button:hover {
-      border-color: var(--accent);
-      color: var(--text);
+      gap: 16px;
+      font-size: 0.85rem;
     }
 
     h2 {
@@ -328,8 +307,10 @@
   <nav>
     <a class="logo" href="/">LinguaFlow</a>
     <div class="nav-right">
-      <span class="user-email" id="user-email"></span>
-      <button id="btn-logout">Sign out</button>
+      <a href="history.html" style="color:var(--text);font-weight:600;text-decoration:none;font-size:0.85rem">History</a>
+      <a href="settings.html" style="color:var(--text-muted);text-decoration:none;font-size:0.85rem">Settings</a>
+      <a href="billing.html" style="color:var(--text-muted);text-decoration:none;font-size:0.85rem">Plan</a>
+      <a href="settings.html" style="color:var(--text-muted);text-decoration:none;font-size:0.85rem" id="user-email"></a>
     </div>
   </nav>
 
@@ -367,7 +348,6 @@
       location.href = '/';
     }
 
-    document.getElementById('btn-logout').addEventListener('click', logout);
 
     (async function init() {
       const token = localStorage.getItem('authToken');
