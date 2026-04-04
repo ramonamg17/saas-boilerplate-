@@ -1,10 +1,10 @@
 import asyncio
+import base64
 import logging
 import random
 from typing import AsyncGenerator
 
-from google.api_core.client_options import ClientOptions
-from google.cloud import texttospeech
+import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config import settings
@@ -55,26 +55,28 @@ LANGUAGE_CODES = {
 
 SLOW_SPEED = 0.7
 SLOW_RATE = "75%"
-
-
-def _get_client() -> texttospeech.TextToSpeechClient:
-    options = ClientOptions(api_key=settings.GOOGLE_TTS_API_KEY)
-    return texttospeech.TextToSpeechClient(client_options=options)
+_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
 
 
 def _synthesize_sync(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
-    """Synchronous Google TTS call. Runs in a thread pool via asyncio.to_thread."""
-    client = _get_client()
+    """Synchronous Google TTS REST call. Runs in a thread pool via asyncio.to_thread."""
     if slow:
-        input_ = texttospeech.SynthesisInput(
-            ssml=f'<speak><prosody rate="{SLOW_RATE}">{text}</prosody></speak>'
-        )
+        input_ = {"ssml": f'<speak><prosody rate="{SLOW_RATE}">{text}</prosody></speak>'}
     else:
-        input_ = texttospeech.SynthesisInput(text=text)
-    voice = texttospeech.VoiceSelectionParams(language_code=lang_code, name=voice_name)
-    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
-    response = client.synthesize_speech(input=input_, voice=voice, audio_config=audio_config)
-    return response.audio_content
+        input_ = {"text": text}
+    payload = {
+        "input": input_,
+        "voice": {"languageCode": lang_code, "name": voice_name},
+        "audioConfig": {"audioEncoding": "MP3"},
+    }
+    resp = httpx.post(
+        _TTS_URL,
+        params={"key": settings.GOOGLE_TTS_API_KEY},
+        json=payload,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return base64.b64decode(resp.json()["audioContent"])
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))

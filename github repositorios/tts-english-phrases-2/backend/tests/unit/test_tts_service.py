@@ -133,54 +133,46 @@ async def test_generate_audio_passes_lang_code():
 
 # ── _synthesize_sync SSML wrapping ────────────────────────────────────────────
 
+def _make_httpx_mock(audio: bytes = b"AUDIO") -> MagicMock:
+    import base64
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"audioContent": base64.b64encode(audio).decode()}
+    mock_resp.raise_for_status = MagicMock()
+    return mock_resp
+
+
 def test_synthesize_sync_wraps_slow_audio_in_ssml():
     """When slow=True, the text sent to Google must be SSML with prosody rate."""
     from services.tts_service import _synthesize_sync, SLOW_RATE
 
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.audio_content = b"AUDIO"
-    mock_client.synthesize_speech.return_value = mock_response
-
-    with patch("services.tts_service._get_client", return_value=mock_client):
+    mock_resp = _make_httpx_mock()
+    with patch("services.tts_service.httpx.post", return_value=mock_resp) as mock_post:
         _synthesize_sync("Hello world", "en-US-Neural2-A", "en-US", slow=True)
 
-    call_kwargs = mock_client.synthesize_speech.call_args[1]
-    input_arg = call_kwargs["input"]
-    # Proto-plus: ssml is set (non-empty) for slow audio
-    assert input_arg.ssml  # non-empty
-    assert SLOW_RATE in input_arg.ssml
-    assert "Hello world" in input_arg.ssml
+    payload = mock_post.call_args[1]["json"]
+    ssml = payload["input"]["ssml"]
+    assert SLOW_RATE in ssml
+    assert "Hello world" in ssml
 
 
 def test_synthesize_sync_uses_plain_text_for_normal_speed():
     """When slow=False, text input must NOT use SSML."""
     from services.tts_service import _synthesize_sync
 
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.audio_content = b"AUDIO"
-    mock_client.synthesize_speech.return_value = mock_response
-
-    with patch("services.tts_service._get_client", return_value=mock_client):
+    mock_resp = _make_httpx_mock()
+    with patch("services.tts_service.httpx.post", return_value=mock_resp) as mock_post:
         _synthesize_sync("Hello world", "en-US-Neural2-A", "en-US", slow=False)
 
-    call_kwargs = mock_client.synthesize_speech.call_args[1]
-    input_arg = call_kwargs["input"]
-    # Proto-plus: text is set (non-empty), ssml is empty for normal audio
-    assert input_arg.text == "Hello world"
-    assert not input_arg.ssml  # empty for plain text
+    payload = mock_post.call_args[1]["json"]
+    assert payload["input"]["text"] == "Hello world"
+    assert "ssml" not in payload["input"]
 
 
 def test_synthesize_sync_returns_audio_content():
     from services.tts_service import _synthesize_sync
 
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.audio_content = b"REAL_AUDIO"
-    mock_client.synthesize_speech.return_value = mock_response
-
-    with patch("services.tts_service._get_client", return_value=mock_client):
+    mock_resp = _make_httpx_mock(b"REAL_AUDIO")
+    with patch("services.tts_service.httpx.post", return_value=mock_resp):
         result = _synthesize_sync("Hi", "en-US-Neural2-A", "en-US", slow=False)
 
     assert result == b"REAL_AUDIO"
