@@ -26,36 +26,24 @@ def _make_user(plan: str = "free") -> MagicMock:
     return user
 
 
-# ── Guest plan tests ──────────────────────────────────────────────────────────
+# ── Unauthenticated (no user) ─────────────────────────────────────────────────
 
-async def test_guest_first_session_allowed():
-    from services.limit_checker import check_generation_limits
-    db = _make_db_with_value(0)
-    await check_generation_limits(db, 5, user=None, guest_id="guest-abc")
-
-
-async def test_guest_second_session_rejected():
-    from services.limit_checker import check_generation_limits
-    db = _make_db_with_value(1)
-    with pytest.raises(HTTPException) as exc_info:
-        await check_generation_limits(db, 5, user=None, guest_id="guest-abc")
-    assert exc_info.value.status_code == 429
-
-
-async def test_guest_duration_exceeded():
-    from services.limit_checker import check_generation_limits
-    db = _make_db_with_value(0)
-    with pytest.raises(HTTPException) as exc_info:
-        await check_generation_limits(db, 10, user=None, guest_id="guest-abc")
-    assert exc_info.value.status_code == 403
-
-
-async def test_guest_no_id_raises_400():
+async def test_unauthenticated_raises_401():
+    """No user → 401 regardless of guest_id."""
     from services.limit_checker import check_generation_limits
     db = _make_db_with_value(0)
     with pytest.raises(HTTPException) as exc_info:
         await check_generation_limits(db, 5, user=None, guest_id=None)
-    assert exc_info.value.status_code == 400
+    assert exc_info.value.status_code == 401
+
+
+async def test_unauthenticated_with_guest_id_still_raises_401():
+    """Providing a guest_id does not bypass auth requirement."""
+    from services.limit_checker import check_generation_limits
+    db = _make_db_with_value(0)
+    with pytest.raises(HTTPException) as exc_info:
+        await check_generation_limits(db, 5, user=None, guest_id="guest-abc")
+    assert exc_info.value.status_code == 401
 
 
 # ── Free plan tests ───────────────────────────────────────────────────────────
