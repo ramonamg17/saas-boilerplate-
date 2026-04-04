@@ -92,17 +92,17 @@ def test_slow_rate_is_string_percentage():
 
 async def test_generate_audio_returns_bytes():
     fake_audio = b"FAKE_MP3_AUDIO_DATA"
-    with patch("services.tts_service._synthesize_sync", return_value=fake_audio):
+    with patch("services.tts_service._synthesize_async", new=AsyncMock(return_value=fake_audio)):
         result = await generate_audio_for_phrase("Hello world", "en-US-Neural2-A", lang="en-US")
     assert result == fake_audio
 
 
 async def test_generate_audio_normal_speed_calls_synthesize_with_slow_false():
-    mock_synth = make_synthesize_mock()
-    with patch("services.tts_service._synthesize_sync", mock_synth):
+    mock_synth = AsyncMock(return_value=b"AUDIO")
+    with patch("services.tts_service._synthesize_async", mock_synth):
         await generate_audio_for_phrase("Hello", "en-US-Neural2-A", speed=1.0, lang="en-US")
     args = mock_synth.call_args[0]
-    # _synthesize_sync(text, voice_name, lang_code, slow)
+    # _synthesize_async(text, voice_name, lang_code, slow)
     assert args[0] == "Hello"
     assert args[1] == "en-US-Neural2-A"
     assert args[2] == "en-US"
@@ -110,72 +110,92 @@ async def test_generate_audio_normal_speed_calls_synthesize_with_slow_false():
 
 
 async def test_generate_audio_slow_speed_calls_synthesize_with_slow_true():
-    mock_synth = make_synthesize_mock()
-    with patch("services.tts_service._synthesize_sync", mock_synth):
+    mock_synth = AsyncMock(return_value=b"AUDIO")
+    with patch("services.tts_service._synthesize_async", mock_synth):
         await generate_audio_for_phrase("Hello", "en-US-Neural2-A", speed=0.7, lang="en-US")
     args = mock_synth.call_args[0]
     assert args[3] is True  # slow=True
 
 
 async def test_generate_audio_passes_voice_id():
-    mock_synth = make_synthesize_mock()
-    with patch("services.tts_service._synthesize_sync", mock_synth):
+    mock_synth = AsyncMock(return_value=b"AUDIO")
+    with patch("services.tts_service._synthesize_async", mock_synth):
         await generate_audio_for_phrase("test", "pt-BR-Neural2-A", lang="pt-BR")
     assert mock_synth.call_args[0][1] == "pt-BR-Neural2-A"
 
 
 async def test_generate_audio_passes_lang_code():
-    mock_synth = make_synthesize_mock()
-    with patch("services.tts_service._synthesize_sync", mock_synth):
+    mock_synth = AsyncMock(return_value=b"AUDIO")
+    with patch("services.tts_service._synthesize_async", mock_synth):
         await generate_audio_for_phrase("test", "fr-FR-Neural2-A", lang="fr-FR")
     assert mock_synth.call_args[0][2] == "fr-FR"
 
 
 # ── _synthesize_sync SSML wrapping ────────────────────────────────────────────
 
-def _make_httpx_mock(audio: bytes = b"AUDIO") -> MagicMock:
-    import base64
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"audioContent": base64.b64encode(audio).decode()}
-    mock_resp.raise_for_status = MagicMock()
-    return mock_resp
+@pytest.mark.asyncio
+async def test_synthesize_async_wraps_slow_audio_in_ssml():
+    """When slow=True, the payload sent to Google must use SSML with prosody rate."""
+    from services.tts_service import _synthesize_async, SLOW_RATE
 
+    captured = {}
 
-def test_synthesize_sync_wraps_slow_audio_in_ssml():
-    """When slow=True, the text sent to Google must be SSML with prosody rate."""
-    from services.tts_service import _synthesize_sync, SLOW_RATE
+    async def fake_post(url, **kwargs):
+        captured.update(kwargs)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {"audioContent": "QVVESU8="}  # b"AUDIO"
+        return mock_resp
 
-    mock_resp = _make_httpx_mock()
-    with patch("services.tts_service.httpx.post", return_value=mock_resp) as mock_post:
-        _synthesize_sync("Hello world", "en-US-Neural2-A", "en-US", slow=True)
+    with patch("services.tts_service._get_async_client") as mock_client:
+        mock_client.return_value.post = fake_post
+        await _synthesize_async("Hello world", "en-US-Neural2-A", "en-US", slow=True)
 
-    payload = mock_post.call_args[1]["json"]
-    ssml = payload["input"]["ssml"]
+    ssml = captured["json"]["input"]["ssml"]
     assert SLOW_RATE in ssml
     assert "Hello world" in ssml
 
 
-def test_synthesize_sync_uses_plain_text_for_normal_speed():
-    """When slow=False, text input must NOT use SSML."""
-    from services.tts_service import _synthesize_sync
+@pytest.mark.asyncio
+async def test_synthesize_async_uses_plain_text_for_normal_speed():
+    """When slow=False, payload must use plain text input."""
+    from services.tts_service import _synthesize_async
 
-    mock_resp = _make_httpx_mock()
-    with patch("services.tts_service.httpx.post", return_value=mock_resp) as mock_post:
-        _synthesize_sync("Hello world", "en-US-Neural2-A", "en-US", slow=False)
+    captured = {}
 
-    payload = mock_post.call_args[1]["json"]
-    assert payload["input"]["text"] == "Hello world"
-    assert "ssml" not in payload["input"]
+    async def fake_post(url, **kwargs):
+        captured.update(kwargs)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {"audioContent": "QVVESU8="}
+        return mock_resp
+
+    with patch("services.tts_service._get_async_client") as mock_client:
+        mock_client.return_value.post = fake_post
+        await _synthesize_async("Hello world", "en-US-Neural2-A", "en-US", slow=False)
+
+    assert captured["json"]["input"]["text"] == "Hello world"
+    assert "ssml" not in captured["json"]["input"]
 
 
-def test_synthesize_sync_returns_audio_content():
-    from services.tts_service import _synthesize_sync
+@pytest.mark.asyncio
+async def test_synthesize_async_returns_audio_content():
+    import base64
+    from services.tts_service import _synthesize_async
 
-    mock_resp = _make_httpx_mock(b"REAL_AUDIO")
-    with patch("services.tts_service.httpx.post", return_value=mock_resp):
-        result = _synthesize_sync("Hi", "en-US-Neural2-A", "en-US", slow=False)
+    audio = b"REAL_AUDIO"
 
-    assert result == b"REAL_AUDIO"
+    async def fake_post(url, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {"audioContent": base64.b64encode(audio).decode()}
+        return mock_resp
+
+    with patch("services.tts_service._get_async_client") as mock_client:
+        mock_client.return_value.post = fake_post
+        result = await _synthesize_async("Hi", "en-US-Neural2-A", "en-US", slow=False)
+
+    assert result == audio
 
 
 # ── generate_all_audio ────────────────────────────────────────────────────────

@@ -57,9 +57,19 @@ SLOW_SPEED = 0.7
 SLOW_RATE = "75%"
 _TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
 
+# Shared async client — reuses connections across all TTS calls
+_client: httpx.AsyncClient | None = None
 
-def _synthesize_sync(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
-    """Synchronous Google TTS REST call. Runs in a thread pool via asyncio.to_thread."""
+
+def _get_async_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(timeout=30)
+    return _client
+
+
+async def _synthesize_async(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
+    """Async Google TTS REST call with connection reuse."""
     if slow:
         input_ = {"ssml": f'<speak><prosody rate="{SLOW_RATE}">{text}</prosody></speak>'}
     else:
@@ -69,14 +79,19 @@ def _synthesize_sync(text: str, voice_name: str, lang_code: str, slow: bool) -> 
         "voice": {"languageCode": lang_code, "name": voice_name},
         "audioConfig": {"audioEncoding": "MP3"},
     }
-    resp = httpx.post(
+    resp = await _get_async_client().post(
         _TTS_URL,
         params={"key": settings.GOOGLE_TTS_API_KEY},
         json=payload,
-        timeout=30,
     )
     resp.raise_for_status()
     return base64.b64decode(resp.json()["audioContent"])
+
+
+# Keep _synthesize_sync for test compatibility
+def _synthesize_sync(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
+    """Synchronous wrapper used only in tests via mocking."""
+    raise NotImplementedError("Use _synthesize_async in production")
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
@@ -84,7 +99,7 @@ async def generate_audio_for_phrase(
     phrase: str, voice_id: str, speed: float = 1.0, lang: str = "en-US"
 ) -> bytes:
     slow = speed < 1.0
-    return await asyncio.to_thread(_synthesize_sync, phrase, voice_id, lang, slow)
+    return await _synthesize_async(phrase, voice_id, lang, slow)
 
 
 async def generate_audio_streaming(
