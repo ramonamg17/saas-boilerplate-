@@ -439,14 +439,35 @@
       <label for="language-select">Target Language</label>
       <select id="language-select">
         <option value="English" selected>English</option>
+        <option value="English (UK)">English (UK)</option>
         <option value="Spanish">Spanish</option>
         <option value="Portuguese (Brazil)">Portuguese (Brazil)</option>
         <option value="French">French</option>
         <option value="German">German</option>
         <option value="Italian">Italian</option>
         <option value="Japanese">Japanese</option>
+        <option value="Chinese">Chinese</option>
+        <option value="Korean">Korean</option>
         <option value="Russian">Russian</option>
+        <option value="Hindi">Hindi</option>
+        <option value="Arabic">Arabic</option>
+        <option value="Dutch">Dutch</option>
+        <option value="Polish">Polish</option>
+        <option value="Swedish">Swedish</option>
+        <option value="Turkish">Turkish</option>
+        <option value="Vietnamese">Vietnamese</option>
       </select>
+    </div>
+
+    <!-- Usage bar — shown only for authenticated users -->
+    <div id="usage-bar-container" style="display:none; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">
+        <span id="usage-bar-label">0 / 120 min used this month</span>
+        <a id="usage-upgrade-link" href="#" style="display:none; color:var(--accent); text-decoration:none; font-size:0.75rem;">Upgrade for more</a>
+      </div>
+      <div style="height:4px; background:var(--border); border-radius:2px; overflow:hidden;">
+        <div id="usage-bar-fill" style="height:100%; background:var(--accent); width:0%; transition:width 0.3s;"></div>
+      </div>
     </div>
 
     <div class="field">
@@ -563,12 +584,80 @@
     // ─── Config ───────────────────────────────────────────────────────────────
     const API_URL = window.location.origin;
 
+    // ─── Usage bar ────────────────────────────────────────────────────────────
+    let userMinutesUsed = 0;
+    let userMinutesLimit = 120;
+
+    async function loadUserUsage() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_URL}/api/user/settings`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        userMinutesUsed = data.minutes_used_this_month || 0;
+        userMinutesLimit = data.minutes_limit || 120;
+        renderUsageBar();
+      } catch (_) {}
+    }
+
+    function renderUsageBar() {
+      const container = document.getElementById('usage-bar-container');
+      if (!localStorage.getItem('auth_token')) return;
+      container.style.display = 'block';
+      const pct = userMinutesLimit > 0 ? Math.min(100, (userMinutesUsed / userMinutesLimit) * 100) : 0;
+      document.getElementById('usage-bar-fill').style.width = `${pct}%`;
+      document.getElementById('usage-bar-label').textContent =
+        `${userMinutesUsed} / ${userMinutesLimit} min used this month`;
+      const upgradeLink = document.getElementById('usage-upgrade-link');
+      if (pct >= 80) {
+        upgradeLink.style.display = 'inline';
+        upgradeLink.onclick = (e) => { e.preventDefault(); triggerUpgrade(); };
+      }
+    }
+
+    function getRemainingMinutes() {
+      return Math.max(0, userMinutesLimit - userMinutesUsed);
+    }
+
+    // ─── Upgrade modal ────────────────────────────────────────────────────────
+    function showUpgradeModal(title, body) {
+      document.getElementById('upgrade-modal-title').textContent = title;
+      document.getElementById('upgrade-modal-body').textContent = body;
+      const modal = document.getElementById('upgrade-modal');
+      modal.style.display = 'flex';
+    }
+
+    function triggerUpgrade() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      fetch(`${API_URL}/api/billing/checkout/pro`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(r => r.json())
+        .then(d => { if (d.url) window.location.href = d.url; })
+        .catch(() => alert('Could not start checkout. Please try again.'));
+    }
+
+    document.getElementById('upgrade-modal-cta').addEventListener('click', triggerUpgrade);
+    document.getElementById('upgrade-modal-dismiss').addEventListener('click', () => {
+      document.getElementById('upgrade-modal').style.display = 'none';
+    });
+
     // ─── Guest ID (persisted across sessions for rate limiting) ──────────────
     let guestId = localStorage.getItem('guestId');
     if (!guestId) {
       guestId = crypto.randomUUID();
       localStorage.setItem('guestId', guestId);
     }
+
+    loadUserUsage();
 
     // ─── Auth bar ─────────────────────────────────────────────────────────────
     (function renderAuthBar() {
@@ -645,7 +734,25 @@
       document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedDuration = parseInt(btn.dataset.min, 10);
+      checkDurationAgainstBudget();
     });
+
+    function checkDurationAgainstBudget() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return; // guests get server-side error
+      const errEl = document.getElementById('form-error');
+      const remaining = getRemainingMinutes();
+      const generateBtn = document.getElementById('btn-generate');
+      if (selectedDuration > remaining) {
+        errEl.textContent = `You've used ${userMinutesUsed} of ${userMinutesLimit} min this month. `
+          + `Select a shorter duration or upgrade your plan.`;
+        errEl.style.display = 'block';
+        generateBtn.disabled = true;
+      } else {
+        errEl.style.display = 'none';
+        generateBtn.disabled = false;
+      }
+    }
 
     // ─── Form → Confirm ───────────────────────────────────────────────────────
     document.getElementById('btn-generate').addEventListener('click', async () => {
@@ -750,7 +857,22 @@
           body: JSON.stringify(formData),
         });
 
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        if (!res.ok) {
+          if (res.status === 429) {
+            const errData = await res.json().catch(() => ({}));
+            const plan = localStorage.getItem('user_plan') || 'free';
+            showUpgradeModal(
+              'Monthly limit reached',
+              errData.detail || (plan === 'pro'
+                ? 'You have used all your Pro plan minutes this month.'
+                : 'You have used all 30 minutes included in your Free plan. Upgrade to Pro for 120 min/month.')
+            );
+            btn.disabled = false;
+            btn.textContent = 'Start Generating';
+            return;
+          }
+          throw new Error(`Server error: ${res.status}`);
+        }
         const data = await res.json();
         currentSessionId = data.session_id;
 
@@ -1036,5 +1158,19 @@
       showView('view-form');
     });
   </script>
+
+<!-- ═══════════════════════════════════════════
+     Upgrade Modal
+════════════════════════════════════════════════ -->
+<div id="upgrade-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:var(--card-bg,#1e1e1e); border:1px solid var(--border); border-radius:12px; padding:32px; max-width:380px; width:90%; text-align:center;">
+    <h3 style="margin:0 0 12px; font-size:1.1rem;" id="upgrade-modal-title">Monthly limit reached</h3>
+    <p style="margin:0 0 24px; font-size:0.9rem; color:var(--text-muted);" id="upgrade-modal-body"></p>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn" id="upgrade-modal-cta" style="min-width:160px;">Upgrade to Pro — $9/mo</button>
+      <button class="btn btn-secondary" id="upgrade-modal-dismiss">Dismiss</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
