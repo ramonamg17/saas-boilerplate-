@@ -45,8 +45,8 @@ async def create_checkout_session(user: User, plan_key: str) -> str:
         mode="subscription",
         line_items=[{"price": plan["stripe_price_id"], "quantity": 1}],
         subscription_data={"trial_period_days": trial_days} if trial_days else {},
-        success_url=f"{settings.FRONTEND_URL}/pages/dashboard/plan.html?success=1",
-        cancel_url=f"{settings.FRONTEND_URL}/pages/dashboard/plan.html?canceled=1",
+        success_url=f"{settings.FRONTEND_URL}/billing.html?success=1",
+        cancel_url=f"{settings.FRONTEND_URL}/billing.html?canceled=1",
         metadata={"user_id": str(user.id), "plan_key": plan_key},
     )
     return session.url
@@ -81,7 +81,7 @@ async def create_billing_portal(user: User) -> str:
 
     session = stripe.billing_portal.Session.create(
         customer=user.stripe_customer_id,
-        return_url=f"{settings.FRONTEND_URL}/pages/dashboard/billing.html",
+        return_url=f"{settings.FRONTEND_URL}/billing.html",
     )
     return session.url
 
