@@ -3,6 +3,7 @@ import logging
 import random
 from typing import AsyncGenerator
 
+from google.api_core.client_options import ClientOptions
 from google.cloud import texttospeech
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -57,7 +58,8 @@ SLOW_RATE = "75%"
 
 
 def _get_client() -> texttospeech.TextToSpeechClient:
-    return texttospeech.TextToSpeechClient()
+    options = ClientOptions(api_key=settings.GOOGLE_TTS_API_KEY)
+    return texttospeech.TextToSpeechClient(client_options=options)
 
 
 def _synthesize_sync(text: str, voice_name: str, lang_code: str, slow: bool) -> bytes:
