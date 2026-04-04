@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan & Billing – LinguaFlow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13; --surface: #1a1a24; --surface2: #22222f;
+      --border: #2e2e40; --accent: #6c63ff; --accent-hover: #7d75ff;
+      --text: #e8e8f0; --text-muted: #8888a8;
+      --success: #4caf88; --error: #ef5350; --warning: #ffa726;
+      --radius: 12px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--font);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 24px 16px 48px;
+    }
+
+    nav {
+      width: 100%; max-width: 680px; display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 32px;
+    }
+
+    .logo { font-size: 1.2rem; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -0.5px; }
+
+    .nav-links { display: flex; align-items: center; gap: 16px; font-size: 0.85rem; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--text); font-weight: 600; }
+
+    .page-header { width: 100%; max-width: 680px; margin-bottom: 28px; }
+    .page-header h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+    .page-header p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* Banner */
+    .banner {
+      width: 100%; max-width: 680px; border-radius: var(--radius);
+      padding: 14px 18px; margin-bottom: 20px; font-size: 0.9rem;
+      display: none;
+    }
+    .banner.success { background: rgba(76,175,136,0.12); border: 1px solid var(--success); color: var(--success); }
+    .banner.info { background: rgba(108,99,255,0.1); border: 1px solid var(--accent); color: var(--text); }
+
+    /* Plans grid */
+    .plans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; max-width: 680px; margin-bottom: 24px; }
+
+    @media (max-width: 520px) { .plans-grid { grid-template-columns: 1fr; } }
+
+    .plan-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px; position: relative;
+    }
+    .plan-card.current { border-color: var(--accent); border-width: 2px; }
+
+    .plan-badge {
+      position: absolute; top: -11px; left: 16px;
+      background: var(--accent); color: #fff; font-size: 0.7rem;
+      font-weight: 700; padding: 2px 10px; border-radius: 99px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    .plan-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .plan-price { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+    .plan-price span { font-size: 0.85rem; font-weight: 400; color: var(--text-muted); }
+    .plan-status { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 18px; min-height: 18px; }
+
+    .plan-features { list-style: none; margin-bottom: 22px; }
+    .plan-features li { font-size: 0.85rem; line-height: 2; }
+    .plan-features li.included { color: var(--text); }
+    .plan-features li.excluded { color: var(--text-muted); }
+    .plan-features li.included::before { content: "✓ "; color: var(--success); }
+    .plan-features li.excluded::before { content: "✗ "; color: var(--border); }
+
+    .btn {
+      width: 100%; padding: 11px; background: var(--accent); border: none;
+      border-radius: 8px; color: #fff; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; font-family: var(--font); transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { background: var(--surface2); color: var(--text-muted); cursor: default; }
+    .btn.secondary {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .btn.secondary:hover { border-color: var(--accent); color: var(--text); background: transparent; }
+
+    /* Usage bar */
+    .usage-section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; width: 100%; max-width: 680px;
+      margin-bottom: 16px;
+    }
+    .usage-section .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .usage-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; }
+    .usage-row .renew { font-size: 0.8rem; color: var(--text-muted); }
+    .usage-bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .usage-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s; }
+
+    /* Manage billing */
+    .manage-section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; width: 100%; max-width: 680px;
+      display: none;
+    }
+    .manage-section .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .manage-section p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 16px; }
+    .manage-section .btn { width: auto; padding: 10px 20px; }
+
+    .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 48px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="logo" href="/">LinguaFlow</a>
+    <div class="nav-links">
+      <a href="history.html">History</a>
+      <a href="settings.html">Settings</a>
+      <a href="billing.html" class="active">Plan</a>
+      <a href="settings.html" id="nav-email" style="color:var(--text-muted)"></a>
+    </div>
+  </nav>
+
+  <!-- Banners -->
+  <div class="banner success" id="banner-success">You're now on Pro! Enjoy 120 min/month and sessions up to 30 min.</div>
+  <div class="banner info" id="banner-canceled">Checkout canceled — no charge was made.</div>
+
+  <div class="page-header">
+    <h1>Plan & Billing</h1>
+    <p id="current-plan-label">Loading…</p>
+  </div>
+
+  <div id="loading-spinner" class="spinner"></div>
+
+  <div id="billing-content" style="display:none; width:100%; flex-direction:column; align-items:center;">
+
+    <!-- Plans grid -->
+    <div class="plans-grid">
+
+      <!-- Free -->
+      <div class="plan-card" id="card-free">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">$0 <span>/mo</span></div>
+        <div class="plan-status" id="status-free"></div>
+        <ul class="plan-features">
+          <li class="included">30 min / month</li>
+          <li class="included">Sessions up to 15 min</li>
+          <li class="included">18 languages</li>
+          <li class="included">Download MP3</li>
+          <li class="excluded">Sessions up to 30 min</li>
+          <li class="excluded">120 min / month</li>
+        </ul>
+        <button class="btn" id="btn-free" disabled>Free plan</button>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card" id="card-pro">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">$9 <span>/mo</span></div>
+        <div class="plan-status" id="status-pro"></div>
+        <ul class="plan-features">
+          <li class="included">120 min / month</li>
+          <li class="included">Sessions up to 30 min</li>
+          <li class="included">18 languages</li>
+          <li class="included">Download MP3</li>
+          <li class="included">Priority support</li>
+          <li class="included">&nbsp;</li>
+        </ul>
+        <button class="btn" id="btn-pro">Upgrade → $9/mo</button>
+      </div>
+
+    </div>
+
+    <!-- Usage bar -->
+    <div class="usage-section">
+      <div class="label">Usage this month</div>
+      <div class="usage-row">
+        <span id="usage-label">0 / 30 min used</span>
+        <span class="renew" id="renew-label"></span>
+      </div>
+      <div class="usage-bar-track">
+        <div class="usage-bar-fill" id="usage-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Manage billing (Pro only) -->
+    <div class="manage-section" id="manage-section">
+      <div class="label">Billing management</div>
+      <p>Update your payment method, view invoices, or cancel your subscription via the Stripe billing portal.</p>
+      <button class="btn secondary" id="btn-portal">Manage billing →</button>
+    </div>
+
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+
+    // Auth guard
+    const token = localStorage.getItem('authToken');
+    if (!token) { window.location.href = '/'; }
+
+    function authHeader() {
+      return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    }
+
+    // Show banners from Stripe redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === '1') {
+      document.getElementById('banner-success').style.display = 'block';
+      history.replaceState({}, '', window.location.pathname);
+    }
+    if (urlParams.get('canceled') === '1') {
+      document.getElementById('banner-canceled').style.display = 'block';
+      history.replaceState({}, '', window.location.pathname);
+    }
+
+    function formatDate(isoString) {
+      if (!isoString) return '';
+      return new Date(isoString).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderBilling(settings, status) {
+      const plan = settings.plan || 'free';
+      const minutesUsed = settings.minutes_used_this_month || 0;
+      const minutesLimit = settings.minutes_limit || 30;
+      const subStatus = status.subscription_status;
+      const periodEnd = status.current_period_end;
+
+      // Nav email
+      document.getElementById('nav-email').textContent = settings.email || '';
+
+      // Page subtitle
+      document.getElementById('current-plan-label').textContent =
+        `Current plan: ${plan.charAt(0).toUpperCase() + plan.slice(1)}`;
+
+      // Plan cards
+      if (plan === 'pro') {
+        document.getElementById('card-pro').classList.add('current');
+        const badge = document.createElement('div');
+        badge.className = 'plan-badge'; badge.textContent = 'Current';
+        document.getElementById('card-pro').prepend(badge);
+
+        document.getElementById('btn-pro').textContent = 'Current plan';
+        document.getElementById('btn-pro').disabled = true;
+
+        document.getElementById('btn-free').textContent = 'Downgrade';
+        document.getElementById('btn-free').disabled = false;
+        document.getElementById('btn-free').className = 'btn secondary';
+        document.getElementById('btn-free').addEventListener('click', openPortal);
+
+        if (subStatus === 'canceled') {
+          document.getElementById('status-pro').textContent = `Cancels on ${formatDate(periodEnd)}`;
+        } else if (periodEnd) {
+          document.getElementById('status-pro').textContent = `Renews ${formatDate(periodEnd)}`;
+        }
+
+        document.getElementById('manage-section').style.display = 'block';
+      } else {
+        document.getElementById('card-free').classList.add('current');
+        const badge = document.createElement('div');
+        badge.className = 'plan-badge'; badge.textContent = 'Current';
+        document.getElementById('card-free').prepend(badge);
+
+        document.getElementById('btn-free').textContent = 'Current plan';
+        document.getElementById('btn-free').disabled = true;
+
+        document.getElementById('btn-pro').addEventListener('click', startUpgrade);
+      }
+
+      // Usage bar
+      const pct = minutesLimit > 0 ? Math.min(100, (minutesUsed / minutesLimit) * 100) : 0;
+      document.getElementById('usage-label').textContent = `${minutesUsed} / ${minutesLimit} min used`;
+      document.getElementById('usage-fill').style.width = `${pct}%`;
+      if (periodEnd) {
+        document.getElementById('renew-label').textContent = `Resets ${formatDate(periodEnd)}`;
+      }
+    }
+
+    async function startUpgrade() {
+      const btn = document.getElementById('btn-pro');
+      btn.disabled = true; btn.textContent = 'Redirecting…';
+      try {
+        const res = await fetch(`${API_URL}/api/billing/checkout`, {
+          method: 'POST',
+          headers: authHeader(),
+          body: JSON.stringify({ plan_key: 'pro' }),
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+      } catch (_) {
+        alert('Could not start checkout. Please try again.');
+        btn.disabled = false; btn.textContent = 'Upgrade → $9/mo';
+      }
+    }
+
+    async function openPortal(e) {
+      const btn = e.currentTarget;
+      btn.disabled = true; btn.textContent = 'Opening…';
+      try {
+        const res = await fetch(`${API_URL}/api/billing/portal`, {
+          method: 'POST', headers: authHeader(),
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+      } catch (_) {
+        alert('Could not open billing portal. Please try again.');
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('btn-portal').addEventListener('click', openPortal);
+
+    // Load data
+    (async function init() {
+      try {
+        const [settingsRes, statusRes] = await Promise.all([
+          fetch(`${API_URL}/api/user/settings`, { headers: authHeader() }),
+          fetch(`${API_URL}/api/billing/status`, { headers: authHeader() }),
+        ]);
+
+        if (settingsRes.status === 401 || statusRes.status === 401) {
+          localStorage.removeItem('authToken');
+          window.location.href = '/';
+          return;
+        }
+
+        if (!settingsRes.ok || !statusRes.ok) {
+          document.getElementById('loading-spinner').style.display = 'none';
+          document.getElementById('current-plan-label').textContent = 'Failed to load billing info.';
+          return;
+        }
+
+        const [settings, status] = await Promise.all([settingsRes.json(), statusRes.json()]);
+
+        renderBilling(settings, status);
+
+        document.getElementById('loading-spinner').style.display = 'none';
+        const content = document.getElementById('billing-content');
+        content.style.display = 'flex';
+      } catch (_) {
+        document.getElementById('loading-spinner').style.display = 'none';
+        document.getElementById('current-plan-label').textContent = 'Connection error.';
+      }
+    })();
+  </script>
+</body>
+</html>
