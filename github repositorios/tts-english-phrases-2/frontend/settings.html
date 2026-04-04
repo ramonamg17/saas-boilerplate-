@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings – LinguaFlow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f13; --surface: #1a1a24; --surface2: #22222f;
+      --border: #2e2e40; --accent: #6c63ff; --accent-hover: #7d75ff;
+      --text: #e8e8f0; --text-muted: #8888a8;
+      --success: #4caf88; --error: #ef5350;
+      --radius: 12px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--font);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 24px 16px 48px;
+    }
+
+    nav {
+      width: 100%; max-width: 520px; display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 32px;
+    }
+
+    .logo { font-size: 1.2rem; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -0.5px; }
+
+    .nav-links { display: flex; align-items: center; gap: 16px; font-size: 0.85rem; }
+
+    .nav-links a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--text); font-weight: 600; }
+
+    .page-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 24px; width: 100%; max-width: 520px; }
+
+    .section {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 24px; width: 100%; max-width: 520px; margin-bottom: 16px;
+    }
+
+    .section-label {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 18px;
+    }
+
+    label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; }
+
+    input[type="text"], input[type="email"] {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.95rem; padding: 11px 14px;
+      outline: none; transition: border-color 0.2s; font-family: var(--font);
+      margin-bottom: 16px;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    input:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn {
+      padding: 11px 22px; background: var(--accent); border: none;
+      border-radius: 8px; color: #fff; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; font-family: var(--font); transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.secondary {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn.secondary:hover { border-color: var(--accent); color: var(--text); background: transparent; }
+    .btn.danger { background: transparent; color: var(--error); border: 1px solid rgba(239,83,80,0.3); }
+    .btn.danger:hover { background: rgba(239,83,80,0.1); border-color: var(--error); }
+
+    .row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 0;
+    }
+    .row + .row { border-top: 1px solid var(--border); }
+    .row-info .title { font-size: 0.9rem; margin-bottom: 2px; }
+    .row-info .desc { font-size: 0.8rem; color: var(--text-muted); }
+
+    .inline-feedback {
+      font-size: 0.85rem; margin-top: 8px; display: none;
+    }
+    .inline-feedback.success { color: var(--success); display: block; }
+    .inline-feedback.error { color: var(--error); display: block; }
+
+    .spinner {
+      width: 22px; height: 22px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 48px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="logo" href="/">LinguaFlow</a>
+    <div class="nav-links">
+      <a href="history.html">History</a>
+      <a href="settings.html" class="active">Settings</a>
+      <a href="billing.html">Plan</a>
+      <a href="settings.html" id="nav-email" style="color:var(--text-muted)"></a>
+    </div>
+  </nav>
+
+  <div class="page-title">Settings</div>
+
+  <!-- Profile section -->
+  <div class="section">
+    <div class="section-label">Profile</div>
+    <div id="profile-loading" class="spinner"></div>
+    <div id="profile-form" style="display:none;">
+      <label for="name-input">Name</label>
+      <input type="text" id="name-input" placeholder="Your name" />
+      <label for="email-input">Email</label>
+      <input type="email" id="email-input" disabled />
+      <button class="btn" id="btn-save">Save changes</button>
+      <div class="inline-feedback" id="save-feedback"></div>
+    </div>
+  </div>
+
+  <!-- Account section -->
+  <div class="section">
+    <div class="section-label">Account</div>
+    <div class="row">
+      <div class="row-info">
+        <div class="title">Sign out</div>
+        <div class="desc">End your session on this device</div>
+      </div>
+      <button class="btn secondary" id="btn-signout">Sign out</button>
+    </div>
+    <div class="row">
+      <div class="row-info">
+        <div class="title" style="color:var(--error)">Delete account</div>
+        <div class="desc">Permanently removes all your data</div>
+      </div>
+      <button class="btn danger" id="btn-delete">Delete</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+
+    // Auth guard
+    const token = localStorage.getItem('authToken');
+    if (!token) { window.location.href = '/'; }
+
+    function authHeader() {
+      return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    }
+
+    // Load user data
+    (async function loadUser() {
+      try {
+        const res = await fetch(`${API_URL}/api/user/settings`, { headers: authHeader() });
+        if (res.status === 401) { localStorage.removeItem('authToken'); window.location.href = '/'; return; }
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('name-input').value = data.name || '';
+        document.getElementById('email-input').value = data.email || '';
+        document.getElementById('nav-email').textContent = data.email || '';
+
+        document.getElementById('profile-loading').style.display = 'none';
+        document.getElementById('profile-form').style.display = 'block';
+      } catch (_) {}
+    })();
+
+    // Save name
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-save');
+      const feedback = document.getElementById('save-feedback');
+      const name = document.getElementById('name-input').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      feedback.className = 'inline-feedback';
+
+      try {
+        const res = await fetch(`${API_URL}/api/user/settings`, {
+          method: 'PATCH',
+          headers: authHeader(),
+          body: JSON.stringify({ name }),
+        });
+        if (!res.ok) throw new Error();
+        feedback.textContent = 'Saved ✓';
+        feedback.className = 'inline-feedback success';
+      } catch (_) {
+        feedback.textContent = 'Failed to save. Please try again.';
+        feedback.className = 'inline-feedback error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save changes';
+      }
+    });
+
+    // Sign out
+    document.getElementById('btn-signout').addEventListener('click', () => {
+      localStorage.removeItem('authToken');
+      window.location.href = '/';
+    });
+
+    // Delete account
+    document.getElementById('btn-delete').addEventListener('click', async () => {
+      const confirmed = prompt('This will permanently delete your account and all data.\n\nType DELETE to confirm:');
+      if (confirmed !== 'DELETE') return;
+
+      const btn = document.getElementById('btn-delete');
+      btn.disabled = true;
+      btn.textContent = 'Deleting…';
+
+      try {
+        const res = await fetch(`${API_URL}/api/user/account`, {
+          method: 'DELETE',
+          headers: authHeader(),
+          body: JSON.stringify({ confirmation: 'DELETE' }),
+        });
+        if (!res.ok) throw new Error();
+        localStorage.removeItem('authToken');
+        window.location.href = '/';
+      } catch (_) {
+        alert('Failed to delete account. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    });
+  </script>
+</body>
+</html>
