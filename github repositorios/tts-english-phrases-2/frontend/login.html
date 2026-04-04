@@ -260,22 +260,9 @@
           const data = await res.json();
           localStorage.setItem('authToken', data.access_token);
 
-          // Migrate any existing guest sessions to the new account
-          const guestId = localStorage.getItem('guestId');
-          if (guestId) {
-            try {
-              await fetch(`${API_URL}/api/auth/guest/migrate`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${data.access_token}`,
-                },
-                body: JSON.stringify({ guest_session_id: guestId }),
-              });
-            } catch (_) { /* migration failure is non-fatal */ }
-          }
-
-          location.href = 'history.html';
+          const returnTo = localStorage.getItem('loginReturnTo') || 'history.html';
+          localStorage.removeItem('loginReturnTo');
+          location.href = returnTo;
         } catch (_) {
           showState('state-error');
         }
