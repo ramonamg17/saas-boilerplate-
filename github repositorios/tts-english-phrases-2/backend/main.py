@@ -106,6 +106,21 @@ async def serve_history():
     return FileResponse(str(frontend_dir / "history.html"))
 
 
+@app.get("/settings.html")
+async def serve_settings():
+    return FileResponse(str(frontend_dir / "settings.html"))
+
+
+@app.get("/billing.html")
+async def serve_billing():
+    return FileResponse(str(frontend_dir / "billing.html"))
+
+
+@app.get("/oauth-callback.html")
+async def serve_oauth_callback():
+    return FileResponse(str(frontend_dir / "oauth-callback.html"))
+
+
 # ── Request/response models ───────────────────────────────────────────
 
 class InterpretTopicRequest(BaseModel):
