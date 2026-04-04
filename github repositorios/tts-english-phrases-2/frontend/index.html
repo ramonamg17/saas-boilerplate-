@@ -594,6 +594,38 @@
   </div>
 </div>
 
+  <!-- Login modal — shown when Generate is clicked without auth -->
+  <div id="login-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:2000; align-items:center; justify-content:center;">
+    <div style="position:relative; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:32px 28px; width:100%; max-width:400px; margin:16px;">
+      <button id="login-modal-close" style="position:absolute; top:14px; right:16px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem; line-height:1; padding:4px;">✕</button>
+      <h3 style="font-size:1.1rem; font-weight:600; margin-bottom:8px;">Sign in to continue</h3>
+      <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:24px;">Create a free account to generate audio sessions.</p>
+
+      <button id="login-modal-google" style="width:100%; padding:12px; background:#fff; color:#222; border:1px solid #ccc; border-radius:8px; font-size:0.9rem; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:16px; font-family:var(--font);">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; color:var(--text-muted); font-size:0.8rem;">
+        <div style="flex:1; height:1px; background:var(--border);"></div>or<div style="flex:1; height:1px; background:var(--border);"></div>
+      </div>
+
+      <div id="login-modal-form-state">
+        <input type="email" id="login-modal-email" placeholder="you@example.com"
+               style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:1rem; padding:12px 14px; outline:none; font-family:var(--font); margin-bottom:4px; transition:border-color 0.2s; box-sizing:border-box;">
+        <div id="login-modal-error" style="display:none; color:var(--error); font-size:0.8rem; margin:6px 0 4px;"></div>
+        <button id="login-modal-send" style="width:100%; padding:13px; background:var(--accent); border:none; border-radius:8px; color:#fff; font-size:1rem; font-weight:600; cursor:pointer; font-family:var(--font); margin-top:8px; transition:background 0.15s;">Send magic link</button>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-top:12px;">No password — we'll send a link to your email.</p>
+      </div>
+
+      <div id="login-modal-sent-state" style="display:none; text-align:center; padding:8px 0;">
+        <div style="font-size:2.5rem; margin-bottom:12px;">📬</div>
+        <div style="font-size:1rem; font-weight:600; margin-bottom:8px;">Check your email</div>
+        <div style="color:var(--text-muted); font-size:0.875rem; line-height:1.5;">Click the link we sent you.<br>It expires in 15 minutes.</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ─── Config ───────────────────────────────────────────────────────────────
     const API_URL = window.location.origin;
@@ -603,7 +635,7 @@
     let userMinutesLimit = 120;
 
     async function loadUserUsage() {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('authToken');
       if (!token) return;
       try {
         const res = await fetch(`${API_URL}/api/user/settings`, {
@@ -619,7 +651,7 @@
 
     function renderUsageBar() {
       const container = document.getElementById('usage-bar-container');
-      if (!localStorage.getItem('auth_token')) return;
+      if (!localStorage.getItem('authToken')) return;
       container.style.display = 'block';
       const pct = userMinutesLimit > 0 ? Math.min(100, (userMinutesUsed / userMinutesLimit) * 100) : 0;
       document.getElementById('usage-bar-fill').style.width = `${pct}%`;
@@ -645,18 +677,7 @@
     }
 
     function triggerUpgrade() {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        window.location.href = '/login.html';
-        return;
-      }
-      fetch(`${API_URL}/api/billing/checkout/pro`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-        .then(r => r.json())
-        .then(d => { if (d.url) window.location.href = d.url; })
-        .catch(() => alert('Could not start checkout. Please try again.'));
+      window.location.href = '/billing.html';
     }
 
     document.getElementById('upgrade-modal-cta').addEventListener('click', triggerUpgrade);
@@ -664,12 +685,82 @@
       document.getElementById('upgrade-modal').style.display = 'none';
     });
 
-    // ─── Guest ID (persisted across sessions for rate limiting) ──────────────
-    let guestId = localStorage.getItem('guestId');
-    if (!guestId) {
-      guestId = crypto.randomUUID();
-      localStorage.setItem('guestId', guestId);
+    // ─── Login modal ──────────────────────────────────────────────────────────
+    function showLoginModal() {
+      document.getElementById('login-modal-form-state').style.display = 'block';
+      document.getElementById('login-modal-sent-state').style.display = 'none';
+      document.getElementById('login-modal-email').value = '';
+      document.getElementById('login-modal-error').style.display = 'none';
+      document.getElementById('login-modal').style.display = 'flex';
     }
+
+    function hideLoginModal() {
+      document.getElementById('login-modal').style.display = 'none';
+    }
+
+    document.getElementById('login-modal-close').addEventListener('click', hideLoginModal);
+
+    document.getElementById('login-modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('login-modal')) hideLoginModal();
+    });
+
+    document.getElementById('login-modal-google').addEventListener('click', async () => {
+      try {
+        localStorage.setItem('loginReturnTo', '/');
+        const res = await fetch(`${API_URL}/api/auth/google`);
+        if (!res.ok) {
+          alert('Google sign-in is not configured. Please use the magic link below.');
+          return;
+        }
+        const data = await res.json();
+        window.location.href = data.url;
+      } catch (_) {
+        alert('Could not reach the server. Please try again.');
+      }
+    });
+
+    document.getElementById('login-modal-send').addEventListener('click', async () => {
+      const email = document.getElementById('login-modal-email').value.trim();
+      const errorEl = document.getElementById('login-modal-error');
+      const btn = document.getElementById('login-modal-send');
+
+      if (!email) {
+        errorEl.textContent = 'Please enter a valid email.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_URL}/api/auth/magic-link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          errorEl.textContent = err.detail || 'Failed to send. Please try again.';
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Send magic link';
+          return;
+        }
+        document.getElementById('login-modal-form-state').style.display = 'none';
+        document.getElementById('login-modal-sent-state').style.display = 'block';
+      } catch (_) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Send magic link';
+      }
+    });
+
+    document.getElementById('login-modal-email').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('login-modal-send').click();
+    });
 
     loadUserUsage();
 
@@ -684,12 +775,10 @@
         bar.innerHTML =
           `<a href="history.html">History</a>` +
           `<span class="separator">|</span>` +
-          (email ? `<span style="color:var(--text-muted)">${email}</span><span class="separator">|</span>` : '') +
-          `<button id="btn-logout">Sign out</button>`;
-        document.getElementById('btn-logout').addEventListener('click', () => {
-          localStorage.removeItem('authToken');
-          location.href = '/';
-        });
+          `<a href="settings.html">Settings</a>` +
+          `<span class="separator">|</span>` +
+          `<a href="billing.html">Plan</a>` +
+          (email ? `<span class="separator">|</span><a href="settings.html" style="color:var(--text-muted)">${email}</a>` : '');
       } else {
         bar.innerHTML = `<a href="login.html">Sign in</a>`;
       }
@@ -697,7 +786,7 @@
 
     // ─── Auth headers helper ──────────────────────────────────────────────────
     function authHeaders() {
-      const h = { 'Content-Type': 'application/json', 'X-Guest-ID': guestId };
+      const h = { 'Content-Type': 'application/json' };
       const token = localStorage.getItem('authToken');
       if (token) h['Authorization'] = `Bearer ${token}`;
       return h;
@@ -752,8 +841,8 @@
     });
 
     function checkDurationAgainstBudget() {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return; // guests get server-side error
+      const token = localStorage.getItem('authToken');
+      if (!token) return; // login modal shown on Generate click
       const errEl = document.getElementById('form-error');
       const remaining = getRemainingMinutes();
       const generateBtn = document.getElementById('btn-generate');
@@ -779,6 +868,14 @@
         errEl.style.display = 'block';
         return;
       }
+
+      // Hard paywall: require login before generating
+      if (!localStorage.getItem('authToken')) {
+        localStorage.setItem('loginReturnTo', '/');
+        showLoginModal();
+        return;
+      }
+
       errEl.style.display = 'none';
 
       formData = { language, topic, duration_minutes: selectedDuration };
