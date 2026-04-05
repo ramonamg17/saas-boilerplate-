@@ -43,7 +43,7 @@ async def checkout(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a Stripe Checkout session (BILLING_MODE=checkout)."""
-    url = await create_checkout_session(user, body.plan_key)
+    url = await create_checkout_session(user, body.plan_key, db)
     return {"url": url}
 
 

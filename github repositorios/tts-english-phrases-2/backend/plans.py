@@ -60,7 +60,7 @@ PLANS: dict[str, Plan] = {
         "key": "pro",
         "name": "Pro",
         "price": 9.0,
-        "stripe_price_id": "price_placeholder_pro",  # EDIT: replace with real Stripe price ID
+        "stripe_price_id": "price_1TIfM5BIF1HVXJpMJz3XQqE7",
         "trial_days": 14,
         "limits": {
             "requests_per_hour": 500,

@@ -27,7 +27,7 @@ async def create_stripe_customer(email: str) -> str:
 
 # ── Checkout ──────────────────────────────────────────────────────────
 
-async def create_checkout_session(user: User, plan_key: str) -> str:
+async def create_checkout_session(user: User, plan_key: str, db: AsyncSession) -> str:
     """Create a Stripe Checkout session and return the URL."""
     plan = get_plan(plan_key)
     if not plan["stripe_price_id"]:
@@ -36,6 +36,8 @@ async def create_checkout_session(user: User, plan_key: str) -> str:
     customer_id = user.stripe_customer_id
     if not customer_id:
         customer_id = await create_stripe_customer(user.email)
+        user.stripe_customer_id = customer_id
+        await db.flush()
 
     trial_days = plan["trial_days"] or None
 
@@ -175,7 +177,10 @@ async def _on_checkout_completed(data: dict, db: AsyncSession) -> None:
     await db.flush()
 
     plan = get_plan(plan_key)
-    await send_subscription_confirmed(user, plan["name"])
+    try:
+        await send_subscription_confirmed(user, plan["name"])
+    except Exception:
+        pass  # Email failure must not roll back the plan upgrade
 
 
 async def _on_subscription_updated(data: dict, db: AsyncSession) -> None:
@@ -220,4 +225,7 @@ async def _on_payment_failed(data: dict, db: AsyncSession) -> None:
 
     user.subscription_status = "past_due"
     await db.flush()
-    await send_payment_failed(user)
+    try:
+        await send_payment_failed(user)
+    except Exception:
+        pass  # Email failure must not roll back the status update
