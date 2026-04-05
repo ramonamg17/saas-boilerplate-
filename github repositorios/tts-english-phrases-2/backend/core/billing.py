@@ -50,6 +50,7 @@ async def create_checkout_session(user: User, plan_key: str, db: AsyncSession) -
         success_url=f"{settings.FRONTEND_URL}/billing.html?success=1",
         cancel_url=f"{settings.FRONTEND_URL}/billing.html?canceled=1",
         metadata={"user_id": str(user.id), "plan_key": plan_key},
+        locale="en",
     )
     return session.url
 
@@ -84,6 +85,7 @@ async def create_billing_portal(user: User) -> str:
     session = stripe.billing_portal.Session.create(
         customer=user.stripe_customer_id,
         return_url=f"{settings.FRONTEND_URL}/billing.html",
+        locale="en",
     )
     return session.url
 
