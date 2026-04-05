@@ -59,9 +59,12 @@ async def payment_intent(
 
 
 @router.post("/portal")
-async def billing_portal(user: User = Depends(get_current_user)):
+async def billing_portal(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Return a Stripe Customer Portal URL."""
-    url = await create_billing_portal(user)
+    url = await create_billing_portal(user, db)
     return {"url": url}
 
 

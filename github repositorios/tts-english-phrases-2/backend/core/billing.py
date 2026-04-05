@@ -77,10 +77,17 @@ async def create_payment_intent(user: User, plan_key: str) -> str:
 
 # ── Billing portal ────────────────────────────────────────────────────
 
-async def create_billing_portal(user: User) -> str:
+async def create_billing_portal(user: User, db: AsyncSession | None = None) -> str:
     """Create a Stripe Customer Portal session and return the URL."""
     if not user.stripe_customer_id:
-        raise HTTPException(status_code=400, detail="No billing account found")
+        # Fallback: retrieve customer from subscription if available
+        if user.stripe_subscription_id:
+            sub = stripe.Subscription.retrieve(user.stripe_subscription_id)
+            user.stripe_customer_id = sub["customer"]
+            if db:
+                await db.flush()
+        else:
+            raise HTTPException(status_code=400, detail="No billing account found")
 
     session = stripe.billing_portal.Session.create(
         customer=user.stripe_customer_id,
@@ -173,6 +180,7 @@ async def _on_checkout_completed(data: dict, db: AsyncSession) -> None:
     if not user:
         return
 
+    user.stripe_customer_id = customer_id  # ensure it's always persisted
     user.stripe_subscription_id = subscription_id
     user.plan = plan_key
     user.subscription_status = "active"
