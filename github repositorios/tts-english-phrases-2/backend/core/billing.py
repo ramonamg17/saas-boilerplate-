@@ -199,8 +199,15 @@ async def _on_subscription_updated(data: dict, db: AsyncSession) -> None:
     if not user:
         return
 
-    status = data.get("status")
-    user.subscription_status = status
+    stripe_status = data.get("status")
+    cancel_at_period_end = data.get("cancel_at_period_end", False)
+    # When the user cancels via portal, Stripe keeps status="active" or "trialing"
+    # but sets cancel_at_period_end=True. Map this to "canceled" so the UI shows
+    # "Cancels on <date>" while the subscription remains usable until period end.
+    if cancel_at_period_end and stripe_status in ("active", "trialing"):
+        user.subscription_status = "canceled"
+    else:
+        user.subscription_status = stripe_status
 
     period_end = data.get("current_period_end")
     if period_end:
