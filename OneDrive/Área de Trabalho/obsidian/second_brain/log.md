@@ -4,5 +4,5 @@
 - Structure created: raw/ and wiki/ directories
 - CLAUDE.md written
 - index.md and log.md initialized
-- qmd: pending initialization (Task 5)
+- qmd: initialized via `qmd init wiki/`
 - Notes: Fresh vault, ready to ingest first source
