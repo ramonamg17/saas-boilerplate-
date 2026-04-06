@@ -1,5 +1,12 @@
 # Wiki Log
 
+## [2026-04-05] ingest | About This Wiki
+- Source: `raw/notes/about-this-wiki.md`
+- Mode: active
+- Pages created: [[wiki/sources/about-this-wiki]], [[wiki/domains/general]]
+- Pages updated: [[index]]
+- Notes: First ingest — meta/setup note. Establishes domain and language conventions.
+
 ## [2026-04-05] setup | Second brain initialized
 - Structure created: raw/ and wiki/ directories
 - CLAUDE.md written
