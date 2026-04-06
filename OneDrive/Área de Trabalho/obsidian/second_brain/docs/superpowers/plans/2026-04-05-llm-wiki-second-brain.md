@@ -156,7 +156,7 @@ The user specifies mode per ingest: **active** or **passive**.
 6. Update the relevant domain overview page in `wiki/domains/`
 7. Update `index.md`: add new page entries, increment page count, update date
 8. Append entry to `log.md` (newest at top)
-9. Re-index qmd: run `qmd index wiki/` in shell
+9. Re-index qmd: run `python -m qmd update wiki` in shell
 
 ### Passive mode
 
@@ -227,9 +227,9 @@ After lint, append a lint entry to `log.md`.
 
 qmd is a local markdown search engine. Use it as follows:
 
-- **Initialize** (first time only): `qmd init wiki/` from vault root
+- **Initialize** (first time only): `python -m qmd collection add wiki wiki/` from vault root
 - **Search**: `qmd search "<query>"` — returns ranked results with snippets
-- **Re-index**: `qmd index wiki/` — run after every ingest
+- **Re-index**: `python -m qmd update wiki` — run after every ingest
 - **Threshold**: use qmd only when wiki has >20 pages; use index.md below that
 - **Fallback**: if qmd returns an error, fall back to index.md scanning
 
@@ -403,7 +403,7 @@ Expected: version string printed, no error.
 
 Run from vault root:
 ```bash
-qmd init wiki/
+python -m qmd collection add wiki wiki/
 ```
 Expected: index initialized, confirmation message. A `.qmd/` or similar config directory will be created.
 
@@ -411,7 +411,7 @@ Expected: index initialized, confirmation message. A `.qmd/` or similar config d
 
 Run:
 ```bash
-qmd search "test"
+python -m qmd search "test"
 ```
 Expected: either empty results or a message indicating the index is empty. No error.
 
@@ -436,7 +436,7 @@ Edit log.md. Replace the line:
 ```
 With:
 ```
-- qmd: initialized via `qmd init wiki/`
+- qmd: initialized via `python -m qmd collection add wiki wiki/`
 ```
 
 - [ ] **Step 7: Commit**
@@ -659,14 +659,14 @@ Edit `log.md` to add this block at the top (after `# Wiki Log`, before the setup
 - [ ] **Step 6: Re-index qmd**
 
 ```bash
-qmd index wiki/
+python -m qmd update wiki
 ```
 Expected: index updated with 2 new pages.
 
 - [ ] **Step 7: Test a query**
 
 ```bash
-qmd search "domains"
+python -m qmd search "domains"
 ```
 Expected: `wiki/domains/general.md` appears in results.
 
