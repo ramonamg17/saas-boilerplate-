@@ -11,7 +11,7 @@ Run these steps in order at the start of every session:
 1. Read this file (CLAUDE.md)
 2. Read `index.md` — if missing, wiki is empty; say "Wiki is empty — ready to ingest first source."
 3. Read last 10 entries of `log.md` — if missing, no ingest has happened yet
-4. Confirm readiness with: "Ready. Wiki has N pages. Last activity: [date and type from log]."
+4. Confirm readiness with: "Ready. Wiki has N pages. Last activity: [date and type from log, or 'none' if log is empty or missing]."
 
 Never take any action before completing these four steps.
 
@@ -76,7 +76,7 @@ The user specifies mode per ingest: **active** or **passive**.
 3. Write `wiki/sources/<slug>.md` summary page
 4. Identify entities (people, places, orgs, books) → create or update their pages in `wiki/entities/`
 5. Identify concepts (ideas, frameworks, themes) → create or update their pages in `wiki/concepts/`
-6. Update the relevant domain overview page in `wiki/domains/`
+6. Create or update the relevant domain overview page in `wiki/domains/`
 7. Update `index.md`: add new page entries, increment page count, update date
 8. Append entry to `log.md` (newest at top)
 9. Re-index qmd: run `qmd index wiki/` in shell
@@ -84,7 +84,7 @@ The user specifies mode per ingest: **active** or **passive**.
 ### Passive mode
 
 1. Read the source file in full
-2. Execute steps 3–9 of active mode silently
+2. Execute silently: write source page, create or update entity/concept pages, create or update domain page, update index.md, append to log.md, re-index qmd
 3. Report to user: pages created, pages updated, contradictions flagged
 
 ### Slug convention
@@ -98,7 +98,7 @@ Example: "The Art of War" → `the-art-of-war.md`
 
 - **Never delete a wiki page** without explicit user confirmation
 - **Always update `updated:`** frontmatter on every edit — use today's date
-- **Always add at least one inbound link** when creating a new page (an existing page must link to it)
+- **Always add at least one inbound link** when creating a new page (an existing wiki page or index.md must link to it; exception: the very first page in an empty wiki may use index.md as its sole inbound link)
 - **Flag contradictions** with a callout block — never silently overwrite conflicting claims:
   ```markdown
   > [!warning] Contradiction
@@ -143,6 +143,7 @@ After lint, append a lint entry to `log.md`.
 - Never mix languages within a single section of a page
 - Bilingual terms: include both PT and EN names as described in Wiki Maintenance Rules above
 - If unsure of the user's preferred language for this session, default to the language of their most recent message
+- Synthesis pages (`wiki/synthesis/`): write in the language the user is currently using in this session
 
 ---
 
@@ -154,7 +155,7 @@ qmd is a local markdown search engine. Use it as follows:
 - **Search**: `qmd search "<query>"` — returns ranked results with snippets
 - **Re-index**: `qmd index wiki/` — run after every ingest
 - **Threshold**: use qmd only when wiki has >20 pages; use index.md below that
-- **Fallback**: if qmd returns an error, fall back to index.md scanning
+- **Fallback**: if qmd is not installed, not found, or returns an error, fall back to index.md scanning — the system never hard-depends on qmd
 
 ---
 
@@ -213,4 +214,4 @@ Append-only. Newest entry at top. Each entry header uses the pattern `## [YYYY-M
 | Markdown page | Default answer format | Write directly |
 | Comparison table | Side-by-side entity/concept analysis | Markdown table |
 | Marp slide deck | Presentation from wiki content | Add `marp: true` to frontmatter |
-| Dataview query | Dynamic tables from frontmatter | Embed in any page |
+| Dataview query | Dynamic tables from frontmatter | Embed in any page (requires Dataview plugin) |
