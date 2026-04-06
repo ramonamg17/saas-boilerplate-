@@ -79,12 +79,12 @@ The user specifies mode per ingest: **active** or **passive**.
 6. Create or update the relevant domain overview page in `wiki/domains/`
 7. Update `index.md`: add new page entries, increment page count, update date
 8. Append entry to `log.md` (newest at top)
-9. Re-index qmd: run `python -m qmd index wiki` in shell
+9. Re-index qmd: run `python -m qmd update wiki` in shell
 
 ### Passive mode
 
 1. Read the source file in full
-2. Execute silently: write source page, create or update entity/concept pages, create or update domain page, update index.md, append to log.md, re-index qmd (`python -m qmd index wiki`)
+2. Execute silently: write source page, create or update entity/concept pages, create or update domain page, update index.md, append to log.md, re-index qmd (`python -m qmd update wiki`)
 3. Report to user: pages created, pages updated, contradictions flagged
 
 ### Slug convention
@@ -153,7 +153,7 @@ qmd is a local markdown search engine (global install via pip). Use it as follow
 
 - **Add collection** (first time only, already done): `python -m qmd collection add wiki wiki/` from vault root — registers the wiki/ directory as the "wiki" collection
 - **Search**: `python -m qmd search "query"` — returns ranked results with snippets (use `python -m qmd` prefix to avoid Windows encoding issues)
-- **Re-index**: `python -m qmd index wiki` — run after every ingest (note: collection name "wiki", not a path)
+- **Re-index**: `python -m qmd update wiki` — run after every ingest (note: collection name "wiki", not a path)
 - **Threshold**: use qmd only when wiki has >20 pages; use index.md below that
 - **Fallback**: if qmd is not installed, not found, or returns an error, fall back to index.md scanning — the system never hard-depends on qmd
 
