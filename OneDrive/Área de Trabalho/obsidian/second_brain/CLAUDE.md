@@ -79,12 +79,12 @@ The user specifies mode per ingest: **active** or **passive**.
 6. Create or update the relevant domain overview page in `wiki/domains/`
 7. Update `index.md`: add new page entries, increment page count, update date
 8. Append entry to `log.md` (newest at top)
-9. Re-index qmd: run `qmd index wiki/` in shell
+9. Re-index qmd: run `python -m qmd index wiki` in shell
 
 ### Passive mode
 
 1. Read the source file in full
-2. Execute silently: write source page, create or update entity/concept pages, create or update domain page, update index.md, append to log.md, re-index qmd
+2. Execute silently: write source page, create or update entity/concept pages, create or update domain page, update index.md, append to log.md, re-index qmd (`python -m qmd index wiki`)
 3. Report to user: pages created, pages updated, contradictions flagged
 
 ### Slug convention
@@ -114,7 +114,7 @@ Example: "The Art of War" → `the-art-of-war.md`
 When the user asks a question about the wiki:
 
 1. If wiki has ≤20 pages: read `index.md` in full to find relevant pages
-2. If wiki has >20 pages: run `qmd search "<query>"` in shell, then read the top results in full
+2. If wiki has >20 pages: run `python -m qmd search "<query>"` in shell, then read the top results in full
 3. Read all relevant pages completely before answering
 4. Synthesize answer using `[[wiki/path/page]]` citation links
 5. Ask: "Worth filing this as a synthesis page?" — if yes, create `wiki/synthesis/<slug>.md`
@@ -149,11 +149,11 @@ After lint, append a lint entry to `log.md`.
 
 ## qmd Search Integration
 
-qmd is a local markdown search engine. Use it as follows:
+qmd is a local markdown search engine (global install via pip). Use it as follows:
 
-- **Initialize** (first time only): `qmd init wiki/` from vault root
-- **Search**: `qmd search "<query>"` — returns ranked results with snippets
-- **Re-index**: `qmd index wiki/` — run after every ingest
+- **Add collection** (first time only, already done): `python -m qmd collection add wiki wiki/` from vault root — registers the wiki/ directory as the "wiki" collection
+- **Search**: `python -m qmd search "query"` — returns ranked results with snippets (use `python -m qmd` prefix to avoid Windows encoding issues)
+- **Re-index**: `python -m qmd index wiki` — run after every ingest (note: collection name "wiki", not a path)
 - **Threshold**: use qmd only when wiki has >20 pages; use index.md below that
 - **Fallback**: if qmd is not installed, not found, or returns an error, fall back to index.md scanning — the system never hard-depends on qmd
 
