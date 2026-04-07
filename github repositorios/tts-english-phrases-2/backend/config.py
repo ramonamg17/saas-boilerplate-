@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     )
 
     # ── Application identity ──────────────────────────────────────────
-    APP_NAME: str = "TTS English Phrases"
+    APP_NAME: str = "FluentShadow"
     FRONTEND_URL: str = "http://localhost:8000"
     SUPPORT_EMAIL: str = "support@example.com"
     OWNER_EMAIL: str = "you@example.com"

@@ -26,7 +26,7 @@ pytestmark = pytest.mark.smoke
 def test_root_serves_html():
     resp = httpx.get(f"{BASE_URL}/")
     assert resp.status_code == 200
-    assert "LinguaFlow" in resp.text
+    assert "FluentShadow" in resp.text
     assert "text/html" in resp.headers["content-type"]
 
 
