@@ -1,5 +1,12 @@
 # Wiki Log
 
+## [2026-04-06] ingest | STJ Informativo 883 (março/2026)
+- Source: `raw/articles/stj-informativo-883-marco-2026.md`
+- Mode: passivo
+- Pages created: [[wiki/sources/stj-informativo-883-marco-2026]], [[wiki/concepts/execucao-penal]], [[wiki/concepts/crimes-licitatorios]], [[wiki/concepts/assistente-de-acusacao]], [[wiki/concepts/ibama-poder-regulatorio]]
+- Pages updated: [[wiki/domains/work]], [[index]]
+- Notes: 6 casos filtrados (criminal + ambiental). Destaques: abolitio criminis Lei 14.133; celular em prisão sem sigilo constitucional; remição por prova testemunhal; IBAMA desvio de poder.
+
 ## [2026-04-06] ingest | Jurisprudência STF/STJ — Colaboração Premiada
 - Source: `raw/articles/jurisprudencia-colaboracao-premiada.md`
 - Mode: passivo (pesquisa web)
